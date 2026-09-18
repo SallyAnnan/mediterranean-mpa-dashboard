@@ -302,17 +302,16 @@ if st.session_state.page == "welcome":
 
 elif st.session_state.page == "candidate_gaps":
 
-    st.markdown(
+        st.markdown(
         """
-        <div style="
-            padding-top: 30px;
-            padding-bottom: 10px;
-        ">
+        <div style="padding-top: 30px; padding-bottom: 10px;">
+
             <div style="
                 font-size: 12px;
                 letter-spacing: 2px;
                 color: #66758A;
                 font-weight: 600;
+                margin-bottom: 10px;
             ">
                 MEDITERRANEAN · CANDIDATE GAPS
             </div>
@@ -321,8 +320,7 @@ elif st.session_state.page == "candidate_gaps":
                 font-family: Georgia, serif;
                 font-size: 42px;
                 font-weight: 400;
-                margin-top: 10px;
-                margin-bottom: 10px;
+                margin: 0 0 10px 0;
                 color: #171717;
             ">
                 Where observed fishing differs from expected
@@ -333,11 +331,13 @@ elif st.session_state.page == "candidate_gaps":
                 color: #5F6368;
                 max-width: 760px;
                 line-height: 1.6;
+                margin-bottom: 0;
             ">
                 Explore candidate enforcement gaps using the counterfactual
                 fishing-effort index S. Lower values indicate areas where
                 observed effort is higher relative to the model's expected effort.
             </p>
+
         </div>
         """,
         unsafe_allow_html=True,
@@ -352,4 +352,6 @@ elif st.session_state.page == "candidate_gaps":
 
     assessed_df = df[df["assessed"] == True].copy()
 
-    st.write(f"**{len(assessed_df):,} assessed protected areas**")
+    st.markdown(
+        f"**{len(assessed_df):,} assessed protected areas**"
+    )
