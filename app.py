@@ -302,9 +302,12 @@ if st.session_state.page == "welcome":
 
 elif st.session_state.page == "candidate_gaps":
 
-        st.markdown(
+    st.markdown(
         """
-        <div style="padding-top: 30px; padding-bottom: 10px;">
+        <div style="
+            padding-top: 30px;
+            padding-bottom: 10px;
+        ">
 
             <div style="
                 font-size: 12px;
@@ -320,7 +323,8 @@ elif st.session_state.page == "candidate_gaps":
                 font-family: Georgia, serif;
                 font-size: 42px;
                 font-weight: 400;
-                margin: 0 0 10px 0;
+                margin-top: 10px;
+                margin-bottom: 10px;
                 color: #171717;
             ">
                 Where observed fishing differs from expected
@@ -331,7 +335,6 @@ elif st.session_state.page == "candidate_gaps":
                 color: #5F6368;
                 max-width: 760px;
                 line-height: 1.6;
-                margin-bottom: 0;
             ">
                 Explore candidate enforcement gaps using the counterfactual
                 fishing-effort index S. Lower values indicate areas where
@@ -350,6 +353,7 @@ elif st.session_state.page == "candidate_gaps":
 
     st.markdown("---")
 
+    # Assessed MPAs
     assessed_df = df[df["assessed"] == True].copy()
 
     st.markdown(
