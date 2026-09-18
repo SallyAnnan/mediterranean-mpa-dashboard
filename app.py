@@ -302,3 +302,30 @@ try:
 except Exception as e:
     st.error("Could not load the ranking data.")
     st.exception(e)
+# TEMPORARY VALUE CHECK
+
+st.markdown("---")
+st.subheader("Temporary value check")
+
+if "df" in locals():
+
+    st.write("### Assessment counts")
+    st.write(df["assessed"].value_counts(dropna=False))
+
+    st.write("### Confidence values")
+    st.write(df["confidence"].value_counts(dropna=False))
+
+    st.write("### Prediction sources")
+    st.write(df["predictions_source"].value_counts(dropna=False))
+
+    st.write("### Countries")
+    st.write(f"Unique ISO3 countries: {df['iso3'].nunique()}")
+
+    st.write("### S range")
+    st.write(df["S"].describe())
+
+    st.write("### Sample assessed rows")
+    st.dataframe(
+        df[df["assessed"] == True].head(10),
+        use_container_width=True
+    )
