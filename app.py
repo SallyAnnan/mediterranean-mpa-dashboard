@@ -22,7 +22,7 @@ if st.session_state.page == "welcome":
 
 elif st.session_state.page == "candidate_gaps":
     
-st.markdown(
+     st.markdown(
     """
 <style>
 .stApp {
