@@ -279,3 +279,26 @@ Mediterranean basin coverage
 """,
     unsafe_allow_html=True,
 )
+
+# TEMPORARY DATA CHECK
+st.markdown("---")
+st.subheader("Temporary data check")
+
+import pandas as pd
+
+DATA_PATH = "data/mpa_ranking.parquet"
+
+try:
+    df = pd.read_parquet(DATA_PATH)
+
+    st.success(f"Data loaded: {len(df):,} rows")
+
+    st.write("**Columns:**")
+    st.write(list(df.columns))
+
+    st.write("**First 5 rows:**")
+    st.dataframe(df.head(), use_container_width=True)
+
+except Exception as e:
+    st.error("Could not load the ranking data.")
+    st.exception(e)
