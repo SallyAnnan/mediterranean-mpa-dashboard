@@ -302,45 +302,19 @@ if st.session_state.page == "welcome":
 
 elif st.session_state.page == "candidate_gaps":
 
+        st.markdown(
+        '<div class="eyebrow">Mediterranean · Candidate gaps</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("# Where observed fishing differs from expected")
+
     st.markdown(
         """
-        <div style="
-            padding-top: 30px;
-            padding-bottom: 10px;
-        ">
-
-            <div style="
-                font-size: 12px;
-                letter-spacing: 2px;
-                color: #66758A;
-                font-weight: 600;
-                margin-bottom: 10px;
-            ">
-                MEDITERRANEAN · CANDIDATE GAPS
-            </div>
-
-            <h1 style="
-                font-family: Georgia, serif;
-                font-size: 42px;
-                font-weight: 400;
-                margin-top: 10px;
-                margin-bottom: 10px;
-                color: #171717;
-            ">
-                Where observed fishing differs from expected
-            </h1>
-
-            <p style="
-                font-size: 16px;
-                color: #5F6368;
-                max-width: 760px;
-                line-height: 1.6;
-            ">
-                Explore candidate enforcement gaps using the counterfactual
-                fishing-effort index S. Lower values indicate areas where
-                observed effort is higher relative to the model's expected effort.
-            </p>
-
+        <div class="intro">
+        Explore candidate enforcement gaps using the counterfactual
+        fishing-effort index S. Lower values indicate areas where
+        observed effort is higher relative to the model's expected effort.
         </div>
         """,
         unsafe_allow_html=True,
