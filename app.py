@@ -224,8 +224,8 @@ This tool supports enquiry — it does not deliver verdicts.
     )
 
     if st.button("Explore candidate gaps →"):
-    st.session_state.page = "candidate_gaps"
-    st.rerun()
+       st.session_state.page = "candidate_gaps"
+       st.rerun()
 
 with right:
 
