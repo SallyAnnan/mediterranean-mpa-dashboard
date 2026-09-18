@@ -168,135 +168,142 @@ h2 {
     unsafe_allow_html=True,
 )
 
-# Header
-st.markdown(
-    """
-<div style="border-bottom:1px solid #deddd7;padding:0.5rem 0 1rem 0;margin-bottom:3rem;">
-<div style="color:#1f5f8b;font-size:0.85rem;font-weight:600;letter-spacing:0.04em;">
-◯ &nbsp; MPA Enforcement Intelligence
-</div>
-<div style="color:#9a9992;font-size:0.65rem;letter-spacing:0.12em;margin-top:0.2rem;margin-left:1.8rem;">
-MEDITERRANEAN · DECISION SUPPORT
-</div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
+# Header and pages
+# ============================================================
 
-# Main welcome layout
-left, right = st.columns([1.35, 0.9], gap="large")
+if st.session_state.page == "welcome":
 
-with left:
-
-    st.markdown(
-        '<div class="eyebrow">Mediterranean marine conservation · decision support tool</div>',
-        unsafe_allow_html=True,
-    )
-
+    # Header
     st.markdown(
         """
-# Mediterranean MPA<br>Enforcement Intelligence
-""",
+    <div style="border-bottom:1px solid #deddd7;padding:0.5rem 0 1rem 0;margin-bottom:3rem;">
+    <div style="color:#1f5f8b;font-size:0.85rem;font-weight:600;letter-spacing:0.04em;">
+    ◯ &nbsp; MPA Enforcement Intelligence
+    </div>
+    <div style="color:#9a9992;font-size:0.65rem;letter-spacing:0.12em;margin-top:0.2rem;margin-left:1.8rem;">
+    MEDITERRANEAN · DECISION SUPPORT
+    </div>
+    </div>
+    """,
         unsafe_allow_html=True,
     )
 
+    # Main welcome layout
+    left, right = st.columns([1.35, 0.9], gap="large")
+
+    with left:
+
+        st.markdown(
+            '<div class="eyebrow">Mediterranean marine conservation · decision support tool</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+    # Mediterranean MPA<br>Enforcement Intelligence
+    """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+    <div class="intro">
+    Explore candidate enforcement gaps by comparing observed industrial
+    fishing effort with what a comparable unprotected area would be expected
+    to experience.
+    </div>
+    """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+    <div class="notice">
+    <strong>A candidate gap is a signal for investigation, not proof of illegal
+    fishing or failed enforcement.</strong> Multiple explanations may account
+    for any observed difference between expected and observed fishing effort.
+    This tool supports enquiry — it does not deliver verdicts.
+    </div>
+    """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Explore candidate gaps →"):
+            st.session_state.page = "candidate_gaps"
+            st.rerun()
+
+    with right:
+
+        st.markdown(
+            """
+    <div class="dataset-card">
+    <div class="dataset-label">Dataset overview</div>
+
+    <div class="dataset-row">
+    <span class="dataset-number">1,288</span>
+    <span class="dataset-title">Assessed MPAs</span>
+    <div class="dataset-note">With sufficient AIS coverage</div>
+    </div>
+
+    <div class="dataset-row">
+    <span class="dataset-number">117</span>
+    <span class="dataset-title">Not assessed</span>
+    <div class="dataset-note">Insufficient AIS coverage</div>
+    </div>
+
+    <div class="dataset-row">
+    <span class="dataset-number">2015–</span>
+    <span class="dataset-title">Analysis period</span>
+    <div class="dataset-note">AIS-derived industrial effort</div>
+    </div>
+
+    <div class="dataset-row">
+    <span class="dataset-number">19</span>
+    <span class="dataset-title">Countries</span>
+    <div class="dataset-note">Mediterranean basin</div>
+    </div>
+
+    </div>
+    """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+    <div class="context-box">
+    Fishing effort is derived from Automatic Identification System (AIS)
+    vessel tracking data. Industrial vessels only. The candidate gap index
+    compares observed effort within a protected area with modelled
+    counterfactual effort at an unprotected site with comparable
+    characteristics.
+    </div>
+    """,
+            unsafe_allow_html=True,
+        )
+
+    # Footer
     st.markdown(
         """
-<div class="intro">
-Explore candidate enforcement gaps by comparing observed industrial
-fishing effort with what a comparable unprotected area would be expected
-to experience.
-</div>
-""",
+    <div class="site-footer">
+    AIS data · Industrial fishing vessels
+    &nbsp; · &nbsp;
+    Not a verdict. A signal for investigation.
+    &nbsp; · &nbsp;
+    Mediterranean basin coverage
+    </div>
+    """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-<div class="notice">
-<strong>A candidate gap is a signal for investigation, not proof of illegal
-fishing or failed enforcement.</strong> Multiple explanations may account
-for any observed difference between expected and observed fishing effort.
-This tool supports enquiry — it does not deliver verdicts.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    if st.button("Explore candidate gaps →"):
-       st.session_state.page = "candidate_gaps"
-       st.rerun()
-
-with right:
-
-    st.markdown(
-        """
-<div class="dataset-card">
-<div class="dataset-label">Dataset overview</div>
-
-<div class="dataset-row">
-<span class="dataset-number">1,288</span>
-<span class="dataset-title">Assessed MPAs</span>
-<div class="dataset-note">With sufficient AIS coverage</div>
-</div>
-
-<div class="dataset-row">
-<span class="dataset-number">117</span>
-<span class="dataset-title">Not assessed</span>
-<div class="dataset-note">Insufficient AIS coverage</div>
-</div>
-
-<div class="dataset-row">
-<span class="dataset-number">2015–</span>
-<span class="dataset-title">Analysis period</span>
-<div class="dataset-note">AIS-derived industrial effort</div>
-</div>
-
-<div class="dataset-row">
-<span class="dataset-number">19</span>
-<span class="dataset-title">Countries</span>
-<div class="dataset-note">Mediterranean basin</div>
-</div>
-
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-<div class="context-box">
-Fishing effort is derived from Automatic Identification System (AIS)
-vessel tracking data. Industrial vessels only. The candidate gap index
-compares observed effort within a protected area with modelled
-counterfactual effort at an unprotected site with comparable
-characteristics.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-# Footer
-st.markdown(
-    """
-<div class="site-footer">
-AIS data · Industrial fishing vessels
-&nbsp; · &nbsp;
-Not a verdict. A signal for investigation.
-&nbsp; · &nbsp;
-Mediterranean basin coverage
-</div>
-""",
-    unsafe_allow_html=True,
-)
 
 # ============================================================
 # CANDIDATE GAPS PAGE
 # ============================================================
 
-if st.session_state.page == "candidate_gaps":
+elif st.session_state.page == "candidate_gaps":
 
-    st.markdown("""
+    st.markdown(
+        """
         <div style="
             padding-top: 30px;
             padding-bottom: 10px;
@@ -332,7 +339,9 @@ if st.session_state.page == "candidate_gaps":
                 observed effort is higher relative to the model's expected effort.
             </p>
         </div>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Back to welcome
     if st.button("← Back to overview"):
