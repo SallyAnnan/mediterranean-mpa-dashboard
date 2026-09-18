@@ -14,6 +14,13 @@ df = pd.read_parquet(DATA_PATH)
 # Page state
 if "page" not in st.session_state:
     st.session_state.page = "welcome"
+
+if st.session_state.page == "welcome":
+     if st.button("Explore candidate gaps →"):
+        st.session_state.page = "candidate_gaps"
+        st.rerun()
+
+elif st.session_state.page == "candidate_gaps":
     
 st.markdown(
     """
