@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 
 st.set_page_config(
@@ -6,7 +7,14 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+# Load dashboard data
+DATA_PATH = "data/mpa_ranking.parquet"
+df = pd.read_parquet(DATA_PATH)
 
+# Page state
+if "page" not in st.session_state:
+    st.session_state.page = "welcome"
+    
 st.markdown(
     """
 <style>
@@ -215,7 +223,9 @@ This tool supports enquiry — it does not deliver verdicts.
         unsafe_allow_html=True,
     )
 
-    st.button("Explore candidate gaps  →")
+    if st.button("Explore candidate gaps →"):
+    st.session_state.page = "candidate_gaps"
+    st.rerun()
 
 with right:
 
@@ -279,3 +289,58 @@ Mediterranean basin coverage
 """,
     unsafe_allow_html=True,
 )
+
+# ============================================================
+# CANDIDATE GAPS PAGE
+# ============================================================
+
+if st.session_state.page == "candidate_gaps":
+
+    st.markdown("""
+        <div style="
+            padding-top: 30px;
+            padding-bottom: 10px;
+        ">
+            <div style="
+                font-size: 12px;
+                letter-spacing: 2px;
+                color: #66758A;
+                font-weight: 600;
+            ">
+                MEDITERRANEAN · CANDIDATE GAPS
+            </div>
+
+            <h1 style="
+                font-family: Georgia, serif;
+                font-size: 42px;
+                font-weight: 400;
+                margin-top: 10px;
+                margin-bottom: 10px;
+                color: #171717;
+            ">
+                Where observed fishing differs from expected
+            </h1>
+
+            <p style="
+                font-size: 16px;
+                color: #5F6368;
+                max-width: 760px;
+                line-height: 1.6;
+            ">
+                Explore candidate enforcement gaps using the counterfactual
+                fishing-effort index S. Lower values indicate areas where
+                observed effort is higher relative to the model's expected effort.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Back to welcome
+    if st.button("← Back to overview"):
+        st.session_state.page = "welcome"
+        st.rerun()
+
+    st.markdown("---")
+
+    assessed_df = df[df["assessed"] == True].copy()
+
+    st.write(f"**{len(assessed_df):,} assessed protected areas**")
