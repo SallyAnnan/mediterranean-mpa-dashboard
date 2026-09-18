@@ -243,7 +243,7 @@ with right:
 </div>
 
 <div class="dataset-row">
-<span class="dataset-number">21</span>
+<span class="dataset-number">19</span>
 <span class="dataset-title">Countries</span>
 <div class="dataset-note">Mediterranean basin</div>
 </div>
@@ -279,53 +279,3 @@ Mediterranean basin coverage
 """,
     unsafe_allow_html=True,
 )
-
-# TEMPORARY DATA CHECK
-st.markdown("---")
-st.subheader("Temporary data check")
-
-import pandas as pd
-
-DATA_PATH = "data/mpa_ranking.parquet"
-
-try:
-    df = pd.read_parquet(DATA_PATH)
-
-    st.success(f"Data loaded: {len(df):,} rows")
-
-    st.write("**Columns:**")
-    st.write(list(df.columns))
-
-    st.write("**First 5 rows:**")
-    st.dataframe(df.head(), use_container_width=True)
-
-except Exception as e:
-    st.error("Could not load the ranking data.")
-    st.exception(e)
-# TEMPORARY VALUE CHECK
-
-st.markdown("---")
-st.subheader("Temporary value check")
-
-if "df" in locals():
-
-    st.write("### Assessment counts")
-    st.write(df["assessed"].value_counts(dropna=False))
-
-    st.write("### Confidence values")
-    st.write(df["confidence"].value_counts(dropna=False))
-
-    st.write("### Prediction sources")
-    st.write(df["predictions_source"].value_counts(dropna=False))
-
-    st.write("### Countries")
-    st.write(f"Unique ISO3 countries: {df['iso3'].nunique()}")
-
-    st.write("### S range")
-    st.write(df["S"].describe())
-
-    st.write("### Sample assessed rows")
-    st.dataframe(
-        df[df["assessed"] == True].head(10),
-        use_container_width=True
-    )
