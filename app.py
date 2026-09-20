@@ -303,251 +303,654 @@ if st.session_state.page == "welcome":
 elif st.session_state.page == "candidate_gaps":
 
     # --------------------------------------------------------
-    # PAGE HEADER
+    # CANDIDATE GAPS PAGE STYLES
     # --------------------------------------------------------
 
     st.markdown(
-        '<div class="eyebrow">Mediterranean · Candidate gaps</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "# Where observed fishing differs from expected"
-    )
-
-    st.markdown(
         """
-        <div class="intro">
-        Explore candidate enforcement gaps by comparing observed industrial
-        fishing effort with the effort expected in comparable unprotected water.
-        A lower S value indicates a larger difference between observed and expected effort.
-        </div>
+        <style>
+
+        /* Candidate page navigation */
+
+        .candidate-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #deddd7;
+            padding: 0 0 0 0;
+            margin-bottom: 38px;
+            height: 58px;
+        }
+
+        .candidate-brand {
+            font-family: Georgia, serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: #262522;
+            white-space: nowrap;
+        }
+
+        .candidate-brand-sub {
+            font-family: Arial, sans-serif;
+            font-size: 9px;
+            letter-spacing: 0.13em;
+            color: #aaa79d;
+            margin-top: 4px;
+        }
+
+        .candidate-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .candidate-logo-mark {
+            width: 22px;
+            height: 22px;
+            border: 1.5px solid #1f5f8b;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1f5f8b;
+            font-size: 11px;
+        }
+
+        .candidate-section-label {
+            color: #a29f94;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+        }
+
+        .candidate-description {
+            color: #77756e;
+            font-size: 13px;
+            line-height: 1.55;
+            max-width: 670px;
+        }
+
+        .candidate-count {
+            text-align: center;
+        }
+
+        .candidate-count-number {
+            font-family: Georgia, serif;
+            font-size: 27px;
+            color: #1f5f8b;
+            line-height: 1;
+        }
+
+        .candidate-count-number.muted {
+            color: #aaa79d;
+        }
+
+        .candidate-count-label {
+            color: #aaa79d;
+            font-size: 10px;
+            margin-top: 7px;
+        }
+
+        /* Distribution */
+
+        .distribution-label {
+            color: #aaa79d;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 9px;
+        }
+
+        .distribution-box {
+            position: relative;
+            height: 150px;
+            border: 1px solid #deddd7;
+            background: #f7f6f2;
+            overflow: hidden;
+        }
+
+        .distribution-negative {
+            position: absolute;
+            left: 14%;
+            right: 50%;
+            top: 28px;
+            bottom: 42px;
+            background: #fbf3f0;
+        }
+
+        .distribution-positive {
+            position: absolute;
+            left: 50%;
+            right: 14%;
+            top: 28px;
+            bottom: 42px;
+            background: #f1f6f1;
+        }
+
+        .distribution-axis {
+            position: absolute;
+            left: 14%;
+            right: 14%;
+            bottom: 42px;
+            height: 1px;
+            background: #d4d1c8;
+        }
+
+        .distribution-zero {
+            position: absolute;
+            left: 50%;
+            top: 28px;
+            bottom: 42px;
+            width: 1px;
+            background: #d4d1c8;
+        }
+
+        .distribution-dot {
+            position: absolute;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .distribution-tick {
+            position: absolute;
+            bottom: 14px;
+            transform: translateX(-50%);
+            color: #aaa79d;
+            font-family: monospace;
+            font-size: 9px;
+        }
+
+        .distribution-note-left {
+            position: absolute;
+            left: 14%;
+            bottom: 1px;
+            transform: translateX(10%);
+            color: #b25b49;
+            font-size: 9px;
+            font-style: italic;
+        }
+
+        .distribution-note-right {
+            position: absolute;
+            right: 14%;
+            bottom: 1px;
+            transform: translateX(-10%);
+            color: #377457;
+            font-size: 9px;
+            font-style: italic;
+        }
+
+        /* Filter bar */
+
+        .filter-shell {
+            background: #eeece6;
+            border: 1px solid #dedbd3;
+            padding: 10px;
+            margin-top: 26px;
+            margin-bottom: 25px;
+        }
+
+        /* Ranking table */
+
+        .ranking-header {
+            display: grid;
+            grid-template-columns: 2.25fr 0.9fr 1.45fr 1.25fr 1.05fr;
+            align-items: center;
+            padding: 0 14px 10px 14px;
+            border-bottom: 1px solid #cfcac0;
+            color: #77756e;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 2.25fr 0.9fr 1.45fr 1.25fr 1.05fr;
+            align-items: center;
+            min-height: 54px;
+            padding: 0 14px;
+            border-bottom: 1px solid #e5e2db;
+            background: #f7f6f2;
+        }
+
+        .ranking-row:nth-child(even) {
+            background: #f3f2ee;
+        }
+
+        .ranking-name {
+            color: #262522;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .ranking-country {
+            color: #77756e;
+            font-size: 12px;
+        }
+
+        .ranking-s {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .ranking-s-value {
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 43px;
+        }
+
+        .ranking-s-bar {
+            width: 58px;
+            height: 4px;
+            background: #deddd7;
+            position: relative;
+        }
+
+        .ranking-s-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 4px;
+        }
+
+        .ranking-gap {
+            color: #a63d2d;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .confidence-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .confidence-high {
+            background: #dfeee5;
+            color: #387256;
+        }
+
+        .confidence-medium {
+            background: #f3ecd9;
+            color: #896b28;
+        }
+
+        .confidence-low {
+            background: #eee5e3;
+            color: #87594e;
+        }
+
+        .rules-placeholder {
+            display: inline-block;
+            background: #dfebf4;
+            color: #35617e;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+        }
+
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
     # --------------------------------------------------------
-    # BACK BUTTON
+    # TOP NAVIGATION
     # --------------------------------------------------------
 
-    if st.button("← Back to overview"):
-        st.session_state.page = "welcome"
-        st.rerun()
+    nav_left, nav_candidate, nav_not_assessed, nav_method = st.columns(
+        [3.8, 1, 1, 1],
+        gap="small",
+    )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    with nav_left:
+        if st.button(
+            "◯  MPA Enforcement Intelligence",
+            key="candidate_logo",
+        ):
+            st.session_state.page = "welcome"
+            st.rerun()
+
+        st.markdown(
+            """
+            <div style="
+                margin-left:31px;
+                margin-top:-15px;
+                color:#aaa79d;
+                font-size:8px;
+                letter-spacing:0.13em;
+            ">
+                MEDITERRANEAN · DECISION SUPPORT
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with nav_candidate:
+        st.markdown(
+            """
+            <div style="
+                color:#1f5f8b;
+                font-size:12px;
+                font-weight:600;
+                text-align:center;
+                padding-top:10px;
+                padding-bottom:12px;
+                border-bottom:2px solid #1f5f8b;
+            ">
+                Candidate gaps
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with nav_not_assessed:
+        if st.button(
+            "Not assessed",
+            key="candidate_nav_not_assessed",
+        ):
+            st.session_state.page = "not_assessed"
+            st.rerun()
+
+    with nav_method:
+        if st.button(
+            "Methodology",
+            key="candidate_nav_methodology",
+        ):
+            st.session_state.page = "methodology"
+            st.rerun()
 
     # --------------------------------------------------------
-    # ASSESSED DATA
+    # PAGE INTRO
+    # --------------------------------------------------------
+
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+
+    intro_left, intro_count_1, intro_count_2 = st.columns(
+        [5.4, 1, 1],
+        gap="large",
+    )
+
+    with intro_left:
+
+        st.markdown(
+            """
+            <div style="
+                font-family:Georgia, serif;
+                font-size:25px;
+                font-weight:600;
+                color:#262522;
+                margin-bottom:8px;
+            ">
+                Candidate Gap Index — S
+            </div>
+
+            <div class="candidate-description">
+                S measures how much observed industrial fishing effort differs
+                from modelled counterfactual effort. Negative values indicate
+                more fishing than expected; positive values indicate less.
+                A low score is a signal for investigation only.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with intro_count_1:
+
+        st.markdown(
+            """
+            <div class="candidate-count">
+                <div class="candidate-count-number">1,288</div>
+                <div class="candidate-count-label">assessed MPAs</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with intro_count_2:
+
+        st.markdown(
+            """
+            <div class="candidate-count">
+                <div class="candidate-count-number muted">117</div>
+                <div class="candidate-count-label">not assessed</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        """
+        <div style="
+            border-bottom:1px solid #deddd7;
+            margin-top:26px;
+            margin-bottom:35px;
+        "></div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # DATA
     # --------------------------------------------------------
 
     assessed_df = df[df["assessed"] == True].copy()
 
-    # Make sure S is numeric
     assessed_df["S"] = pd.to_numeric(
         assessed_df["S"],
-        errors="coerce"
+        errors="coerce",
     )
 
     assessed_df = assessed_df.dropna(subset=["S"])
 
     # --------------------------------------------------------
-    # DISTRIBUTION
+    # S DISTRIBUTION
     # --------------------------------------------------------
 
     st.markdown(
         """
-        <div style="
-            border-top:1px solid #dedbd3;
-            border-bottom:1px solid #dedbd3;
-            padding:25px 0 30px 0;
-            margin:10px 0 30px 0;
-        ">
-            <div style="
-                font-size:11px;
-                letter-spacing:1.8px;
-                color:#77756e;
-                font-weight:600;
-                text-transform:uppercase;
-                margin-bottom:8px;
-            ">
-                Candidate gap index
-            </div>
-
-            <div style="
-                font-family:Georgia, serif;
-                font-size:25px;
-                color:#262522;
-                margin-bottom:8px;
-            ">
-                Distribution of S across assessed protected areas
-            </div>
-
-            <div style="
-                color:#77756e;
-                font-size:13px;
-                line-height:1.5;
-            ">
-                Each point represents one assessed protected area.
-                Select an area below to inspect its observed and expected effort.
-            </div>
+        <div class="distribution-label">
+            S distribution · sample of 20 assessed MPAs · click to select
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # S DISTRIBUTION CHART
-    # --------------------------------------------------------
+    # Select 20 real MPAs distributed across the S range.
+    sorted_sample = assessed_df.sort_values("S").reset_index(drop=True)
 
-    import plotly.graph_objects as go
+    if len(sorted_sample) > 20:
+        sample_positions = [
+            round(i * (len(sorted_sample) - 1) / 19)
+            for i in range(20)
+        ]
+        distribution_df = sorted_sample.iloc[
+            sample_positions
+        ].copy()
+    else:
+        distribution_df = sorted_sample.copy()
 
-    chart_df = assessed_df.copy()
+    distribution_html = """
+    <div class="distribution-box">
+        <div class="distribution-negative"></div>
+        <div class="distribution-positive"></div>
+        <div class="distribution-axis"></div>
+        <div class="distribution-zero"></div>
+    """
 
-    chart_df["y"] = 0
+    dot_heights = [
+        69, 48, 34, 57, 43,
+        62, 45, 57, 37, 51,
+        40, 60, 47, 31, 56,
+        43, 61, 38, 55, 45,
+    ]
 
-    fig = go.Figure()
+    for i, (_, row) in enumerate(
+        distribution_df.iterrows()
+    ):
 
-    fig.add_trace(
-        go.Scatter(
-            x=chart_df["S"],
-            y=chart_df["y"],
-            mode="markers",
-            marker=dict(
-                size=8,
-                opacity=0.55,
-            ),
-            customdata=chart_df[
-                [
-                    "mpa_name",
-                    "iso3",
-                    "S",
-                    "abs_gap_hours",
-                    "confidence",
-                ]
-            ],
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "%{customdata[1]}<br>"
-                "S = %{customdata[2]:.3f}<br>"
-                "Absolute gap = %{customdata[3]:,.0f} hours<br>"
-                "Confidence = %{customdata[4]}"
-                "<extra></extra>"
-            ),
-        )
-    )
+        s_value = float(row["S"])
 
-    fig.add_vline(
-        x=0,
-        line_width=1,
-        line_dash="dash",
-    )
+        left_percent = 14 + ((s_value + 1) / 2) * 72
 
-    fig.update_layout(
-        height=150,
-        margin=dict(l=10, r=10, t=10, b=35),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        showlegend=False,
-        xaxis=dict(
-            range=[-1, 1],
-            tickmode="array",
-            tickvals=[-1, -0.5, 0, 0.5, 1],
-            ticktext=[
-                "-1",
-                "-0.5",
-                "0",
-                "+0.5",
-                "+1",
-            ],
-            title="S",
-            zeroline=False,
-            showgrid=False,
-        ),
-        yaxis=dict(
-            visible=False,
-            range=[-1, 1],
-        ),
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={
-            "displayModeBar": False
-        },
-    )
-
-    # --------------------------------------------------------
-    # FILTERS
-    # --------------------------------------------------------
-
-    st.markdown(
-        """
-        <div style="
-            font-family:Georgia, serif;
-            font-size:22px;
-            margin:25px 0 15px 0;
-            color:#262522;
-        ">
-            Explore assessed areas
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(
-        [1.5, 1, 1, 1]
-    )
-
-    with filter_col1:
-        search = st.text_input(
-            "Search protected area",
-            placeholder="Search by name...",
-        )
-
-    with filter_col2:
-        countries = ["All"] + sorted(
-            assessed_df["iso3"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-
-        selected_country = st.selectbox(
-            "Country",
-            countries,
-        )
-
-    with filter_col3:
-        confidence_options = [
-            "All",
-            "High",
-            "Medium",
-            "Low",
+        top_percent = dot_heights[
+            i % len(dot_heights)
         ]
 
-        selected_confidence = st.selectbox(
-            "Confidence",
-            confidence_options,
+        if s_value < -0.65:
+            dot_color = "#a63d32"
+        elif s_value < -0.3:
+            dot_color = "#c2674e"
+        elif s_value < 0:
+            dot_color = "#c88c51"
+        elif s_value < 0.35:
+            dot_color = "#8b8b78"
+        elif s_value < 0.7:
+            dot_color = "#4f8568"
+        else:
+            dot_color = "#28664b"
+
+        distribution_html += f"""
+            <div
+                class="distribution-dot"
+                title="{str(row.get('mpa_name', 'MPA'))}"
+                style="
+                    left:{left_percent:.2f}%;
+                    top:{top_percent}%;
+                    background:{dot_color};
+                "
+            ></div>
+        """
+
+    distribution_html += """
+        <div class="distribution-tick" style="left:14%;">−1</div>
+        <div class="distribution-tick" style="left:32%;">−0.5</div>
+        <div class="distribution-tick" style="left:50%;">0</div>
+        <div class="distribution-tick" style="left:68%;">+0.5</div>
+        <div class="distribution-tick" style="left:86%;">+1</div>
+
+        <div class="distribution-note-left">
+            ← candidate gap
+        </div>
+
+        <div class="distribution-note-right">
+            protection signal →
+        </div>
+    </div>
+    """
+
+    st.markdown(
+        distribution_html,
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # FILTER BAR
+    # --------------------------------------------------------
+
+    filter_container = st.container()
+
+    with filter_container:
+
+        f1, f2, f3, f4, f5, f6 = st.columns(
+            [2.6, 1, 1.25, 1.15, 1.15, 0.8],
+            gap="small",
         )
 
-    with filter_col4:
-        protection_options = ["All"]
+        with f1:
+            search_value = st.text_input(
+                "Search",
+                placeholder="⌕  Search by name or country...",
+                label_visibility="collapsed",
+                key="candidate_search",
+            )
 
-        if "iucn_cat" in assessed_df.columns:
-            protection_options += sorted(
-                assessed_df["iucn_cat"]
+        with f2:
+
+            countries = [
+                "All countries"
+            ] + sorted(
+                assessed_df["iso3"]
                 .dropna()
                 .astype(str)
                 .unique()
                 .tolist()
             )
 
-        selected_protection = st.selectbox(
-            "Protection level",
-            protection_options,
-        )
+            selected_country = st.selectbox(
+                "Country",
+                countries,
+                label_visibility="collapsed",
+                key="candidate_country",
+            )
+
+        with f3:
+
+            confidence_options = [
+                "All confidence levels",
+                "High",
+                "Medium",
+                "Low",
+            ]
+
+            selected_confidence = st.selectbox(
+                "Confidence",
+                confidence_options,
+                label_visibility="collapsed",
+                key="candidate_confidence",
+            )
+
+        with f4:
+
+            restriction_options = [
+                "Restricted",
+                "All rules",
+            ]
+
+            selected_restriction = st.selectbox(
+                "Fishing rules",
+                restriction_options,
+                label_visibility="collapsed",
+                key="candidate_restriction",
+            )
+
+        with f5:
+
+            s_options = [
+                "All S values",
+                "Candidate gaps (S < 0)",
+                "Protection signal (S ≥ 0)",
+            ]
+
+            selected_s = st.selectbox(
+                "S range",
+                s_options,
+                label_visibility="collapsed",
+                key="candidate_s_range",
+            )
+
+        with f6:
+
+            if st.button(
+                "Clear filters",
+                key="candidate_clear_filters",
+            ):
+                st.session_state.candidate_search = ""
+                st.session_state.candidate_country = "All countries"
+                st.session_state.candidate_confidence = "All confidence levels"
+                st.session_state.candidate_restriction = "Restricted"
+                st.session_state.candidate_s_range = "All S values"
+                st.rerun()
 
     # --------------------------------------------------------
     # APPLY FILTERS
@@ -555,23 +958,45 @@ elif st.session_state.page == "candidate_gaps":
 
     filtered_df = assessed_df.copy()
 
-    if search:
-        filtered_df = filtered_df[
+    if search_value:
+
+        search_lower = search_value.lower()
+
+        name_match = (
             filtered_df["mpa_name"]
             .fillna("")
+            .astype(str)
+            .str.lower()
             .str.contains(
-                search,
-                case=False,
-                na=False,
+                search_lower,
+                regex=False,
             )
-        ]
+        )
 
-    if selected_country != "All":
+        country_match = (
+            filtered_df["iso3"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                search_lower,
+                regex=False,
+            )
+        )
+
         filtered_df = filtered_df[
-            filtered_df["iso3"] == selected_country
+            name_match | country_match
         ]
 
-    if selected_confidence != "All":
+    if selected_country != "All countries":
+
+        filtered_df = filtered_df[
+            filtered_df["iso3"].astype(str)
+            == selected_country
+        ]
+
+    if selected_confidence != "All confidence levels":
+
         filtered_df = filtered_df[
             filtered_df["confidence"]
             .astype(str)
@@ -579,409 +1004,193 @@ elif st.session_state.page == "candidate_gaps":
             == selected_confidence.lower()
         ]
 
-    if selected_protection != "All":
+    if selected_s == "Candidate gaps (S < 0)":
+
         filtered_df = filtered_df[
-            filtered_df["iucn_cat"]
-            .astype(str)
-            == selected_protection
+            filtered_df["S"] < 0
+        ]
+
+    elif selected_s == "Protection signal (S ≥ 0)":
+
+        filtered_df = filtered_df[
+            filtered_df["S"] >= 0
         ]
 
     # --------------------------------------------------------
-    # MASTER / DETAIL LAYOUT
+    # TABLE HEADER
     # --------------------------------------------------------
 
-    table_col, detail_col = st.columns(
-        [1.35, 0.9],
-        gap="large",
+    st.markdown(
+        """
+        <div style="
+            color:#aaa79d;
+            font-size:9px;
+            letter-spacing:0.1em;
+            text-transform:uppercase;
+            margin:8px 0 9px 0;
+        ">
+            Protected areas · sorted by candidate gap
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # LEFT: RANKING TABLE
-    # --------------------------------------------------------
-
-    with table_col:
-
-        st.markdown(
-            f"""
-            <div style="
-                color:#77756e;
-                font-size:12px;
-                margin-bottom:12px;
-            ">
-                {len(filtered_df):,} areas shown
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        display_df = filtered_df.sort_values(
-            "S",
-            ascending=True,
-        ).copy()
-
-        display_df["S"] = display_df["S"].round(3)
-
-        display_df["abs_gap_hours"] = display_df[
-            "abs_gap_hours"
-        ].round(0)
-
-        table_columns = [
-            "mpa_name",
-            "S",
-            "abs_gap_hours",
-            "confidence",
-        ]
-
-        available_columns = [
-            col for col in table_columns
-            if col in display_df.columns
-        ]
-
-        st.dataframe(
-            display_df[available_columns],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "mpa_name": st.column_config.TextColumn(
-                    "Protected area",
-                ),
-                "S": st.column_config.NumberColumn(
-                    "S",
-                    format="%.3f",
-                ),
-                "abs_gap_hours": st.column_config.NumberColumn(
-                    "Absolute gap (hours)",
-                    format="%,.0f",
-                ),
-                "confidence": st.column_config.TextColumn(
-                    "Confidence",
-                ),
-            },
-        )
+    # Sort by S
+    table_df = filtered_df.sort_values(
+        "S",
+        ascending=True,
+    ).copy()
 
     # --------------------------------------------------------
-    # RIGHT: DETAIL PANEL
+    # RANKING TABLE
     # --------------------------------------------------------
 
-    with detail_col:
+    table_html = """
+    <div class="ranking-header">
+        <div>Protected area ↕</div>
+        <div>Country ↕</div>
+        <div>S / candidate gap ↑</div>
+        <div>Abs. gap (hrs) ↕</div>
+        <div>Confidence ↕</div>
+    </div>
+    """
 
-        st.markdown(
-            """
-            <div style="
-                border-left:1px solid #dedbd3;
-                padding-left:25px;
-                min-height:400px;
-            ">
-            """,
-            unsafe_allow_html=True,
-        )
+    # Show the first 10 rows for the initial view.
+    for _, row in table_df.head(10).iterrows():
 
-        if len(filtered_df) > 0:
-
-            selected_index = st.selectbox(
-                "Inspect protected area",
-                filtered_df.index,
-                format_func=lambda i: filtered_df.loc[
-                    i, "mpa_name"
-                ],
-            )
-
-            selected = filtered_df.loc[selected_index]
-
-            name = selected.get(
+        name = str(
+            row.get(
                 "mpa_name",
-                "Unnamed protected area",
+                "Unnamed MPA",
             )
+        )
 
-            s_value = float(selected["S"])
-
-            observed = selected.get(
-                "observed_hours_cells",
-                None,
+        iso3 = str(
+            row.get(
+                "iso3",
+                "—",
             )
+        )
 
-            expected = selected.get(
-                "expected_hours_inside",
-                None,
+        s_value = float(
+            row.get(
+                "S",
+                0,
             )
+        )
 
-            abs_gap = selected.get(
-                "abs_gap_hours",
-                None,
-            )
+        gap = row.get(
+            "abs_gap_hours",
+            None,
+        )
 
-            confidence = selected.get(
+        confidence = str(
+            row.get(
                 "confidence",
                 "not assessed",
             )
+        ).strip()
 
-            # Normalise confidence casing
-            confidence_display = str(
-                confidence
-            ).strip().capitalize()
+        confidence_lower = confidence.lower()
 
-            if confidence_display.lower() == "Not assessed".lower():
-                confidence_display = "not assessed"
-
-            st.markdown(
-                f"""
-                <div style="
-                    font-size:11px;
-                    letter-spacing:1.6px;
-                    color:#77756e;
-                    text-transform:uppercase;
-                    margin-bottom:8px;
-                ">
-                    Protected area
-                </div>
-
-                <div style="
-                    font-family:Georgia, serif;
-                    font-size:28px;
-                    line-height:1.15;
-                    color:#262522;
-                    margin-bottom:20px;
-                ">
-                    {name}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # S
-            st.markdown(
-                f"""
-                <div style="
-                    font-size:11px;
-                    letter-spacing:1.5px;
-                    color:#77756e;
-                    text-transform:uppercase;
-                ">
-                    Candidate gap index
-                </div>
-
-                <div style="
-                    font-family:Georgia, serif;
-                    font-size:46px;
-                    color:#1f5f8b;
-                    margin:3px 0 4px 0;
-                ">
-                    {s_value:.3f}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if s_value < -0.5:
-                interpretation = (
-                    "Observed fishing effort is substantially "
-                    "higher relative to expected effort."
-                )
-            elif s_value < 0:
-                interpretation = (
-                    "Observed fishing effort is higher than "
-                    "expected effort."
-                )
-            elif s_value < 0.5:
-                interpretation = (
-                    "Observed fishing effort is below "
-                    "expected effort."
-                )
-            else:
-                interpretation = (
-                    "Observed fishing effort is substantially "
-                    "below expected effort."
-                )
-
-            st.markdown(
-                f"""
-                <div style="
-                    background:#eeece6;
-                    border:1px solid #dedbd3;
-                    padding:14px;
-                    margin:12px 0 22px 0;
-                    color:#5f5d57;
-                    font-size:13px;
-                    line-height:1.55;
-                ">
-                    {interpretation}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Observed vs expected
-            st.markdown(
-                """
-                <div style="
-                    font-family:Georgia, serif;
-                    font-size:20px;
-                    color:#262522;
-                    margin-bottom:12px;
-                ">
-                    Fishing effort
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            effort_col1, effort_col2 = st.columns(2)
-
-            with effort_col1:
-                if pd.notna(observed):
-                    st.metric(
-                        "Observed",
-                        f"{observed:,.0f} h",
-                    )
-
-            with effort_col2:
-                if pd.notna(expected):
-                    st.metric(
-                        "Expected",
-                        f"{expected:,.0f} h",
-                    )
-
-            if pd.notna(abs_gap):
-                st.markdown(
-                    f"""
-                    <div style="
-                        margin-top:10px;
-                        color:#62615c;
-                        font-size:13px;
-                    ">
-                        Absolute gap: <strong>
-                        {abs_gap:,.0f} hours
-                        </strong>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            # Confidence
-            st.markdown(
-                f"""
-                <div style="
-                    border-top:1px solid #dedbd3;
-                    margin-top:25px;
-                    padding-top:18px;
-                ">
-                    <div style="
-                        font-size:11px;
-                        letter-spacing:1.5px;
-                        color:#77756e;
-                        text-transform:uppercase;
-                    ">
-                        Confidence
-                    </div>
-
-                    <div style="
-                        font-family:Georgia, serif;
-                        font-size:20px;
-                        margin-top:4px;
-                        color:#262522;
-                    ">
-                        {confidence_display}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Context
-            st.markdown(
-                """
-                <div style="
-                    border-top:1px solid #dedbd3;
-                    margin-top:20px;
-                    padding-top:18px;
-                ">
-                    <div style="
-                        font-family:Georgia, serif;
-                        font-size:20px;
-                        color:#262522;
-                        margin-bottom:10px;
-                    ">
-                        Context
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            context_items = []
-
-            if pd.notna(selected.get("iso3", None)):
-                context_items.append(
-                    f"Country: {selected['iso3']}"
-                )
-
-            if pd.notna(selected.get("iucn_cat", None)):
-                context_items.append(
-                    f"Protection category: {selected['iucn_cat']}"
-                )
-
-            if pd.notna(selected.get("site_type", None)):
-                context_items.append(
-                    f"Site type: {selected['site_type']}"
-                )
-
-            if pd.notna(selected.get("area_km2", None)):
-                context_items.append(
-                    f"Area: {selected['area_km2']:,.1f} km²"
-                )
-
-            for item in context_items:
-                st.markdown(
-                    f"""
-                    <div style="
-                        color:#62615c;
-                        font-size:13px;
-                        padding:6px 0;
-                        border-bottom:1px solid #eeece6;
-                    ">
-                        {item}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            # Provenance
-            source = selected.get(
-                "predictions_source",
-                None,
-            )
-
-            if pd.notna(source):
-                st.markdown(
-                    f"""
-                    <div style="
-                        margin-top:22px;
-                        color:#9a9992;
-                        font-size:11px;
-                        line-height:1.5;
-                    ">
-                        Prediction source: {source}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
+        if confidence_lower == "high":
+            confidence_class = "confidence-high"
+        elif confidence_lower == "medium":
+            confidence_class = "confidence-medium"
+        elif confidence_lower == "low":
+            confidence_class = "confidence-low"
         else:
+            confidence_class = "confidence-medium"
 
-            st.markdown(
-                """
-                <div style="
-                    padding:50px 10px;
-                    color:#77756e;
-                    text-align:center;
-                ">
-                    No protected areas match the selected filters.
-                </div>
-                """,
-                unsafe_allow_html=True,
+        if s_value < 0:
+            s_color = "#a63d32"
+            fill_color = "#a63d32"
+            bar_width = min(
+                58,
+                max(
+                    3,
+                    abs(s_value) * 58,
+                ),
+            )
+        else:
+            s_color = "#377457"
+            fill_color = "#377457"
+            bar_width = min(
+                58,
+                max(
+                    3,
+                    abs(s_value) * 58,
+                ),
             )
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        if pd.notna(gap):
+            gap_text = f"+{gap:,.0f} hrs"
+        else:
+            gap_text = "—"
+
+        # Fishing rules are not present in the ranking parquet.
+        # We do not invent a rule.
+        rules_text = "Protection data"
+
+        table_html += f"""
+        <div class="ranking-row">
+
+            <div class="ranking-name">
+                {name}
+            </div>
+
+            <div class="ranking-country">
+                {iso3}
+            </div>
+
+            <div class="ranking-s">
+
+                <span
+                    class="ranking-s-value"
+                    style="color:{s_color};"
+                >
+                    {s_value:+.2f}
+                </span>
+
+                <span class="ranking-s-bar">
+                    <span
+                        class="ranking-s-fill"
+                        style="
+                            width:{bar_width:.1f}px;
+                            background:{fill_color};
+                        "
+                    ></span>
+                </span>
+
+            </div>
+
+            <div class="ranking-gap">
+                {gap_text}
+            </div>
+
+            <div>
+                <span class="confidence-tag {confidence_class}">
+                    {confidence.capitalize()}
+                </span>
+            </div>
+
+        </div>
+        """
+
+    if len(table_df) == 0:
+
+        table_html += """
+        <div style="
+            padding:35px;
+            text-align:center;
+            color:#77756e;
+            font-size:12px;
+        ">
+            No assessed protected areas match these filters.
+        </div>
+        """
+
+    st.markdown(
+        table_html,
+        unsafe_allow_html=True,
+    )
