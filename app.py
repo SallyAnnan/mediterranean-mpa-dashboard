@@ -303,6 +303,7 @@ if st.session_state.page == "welcome":
 elif st.session_state.page == "candidate_gaps":
 
     import html as html_lib
+    import plotly.graph_objects as go
 
     # --------------------------------------------------------
     # HELPERS
@@ -326,12 +327,22 @@ elif st.session_state.page == "candidate_gaps":
         )
 
     def fmt_hours(value) -> str:
+        # The parquet stores P - O (expected minus observed), so it is
+        # NEGATIVE when there is excess fishing. For display we show
+        # O - P ("excess hours"): + means more fishing than expected
+        # (candidate gap), - means less than expected (protection signal).
         if pd.isna(value):
             return "—"
-        value = abs(float(value))
-        if value >= 1000:
-            return f"+{value / 1000:,.1f}k hrs"
-        return f"+{value:,.0f} hrs"
+        excess = -float(value)
+        sign = "+" if excess >= 0 else "−"
+        mag = abs(excess)
+        if mag >= 1000:
+            txt = f"{mag / 1000:,.1f}k"
+        elif mag >= 10:
+            txt = f"{mag:,.0f}"
+        else:
+            txt = f"{mag:,.1f}"
+        return f"{sign}{txt} hrs"
 
     def reset_candidate_filters():
         # Must run as an on_click callback. Assigning to a widget's
@@ -340,8 +351,67 @@ elif st.session_state.page == "candidate_gaps":
         st.session_state.candidate_search = ""
         st.session_state.candidate_country = "All countries"
         st.session_state.candidate_confidence = "All confidence levels"
-        st.session_state.candidate_restriction = "Restricted"
+        st.session_state.candidate_restriction = "Fishing rules: any"
         st.session_state.candidate_s_range = "All S values"
+
+
+    # --------------------------------------------------------
+    # SELECTION STATE + DETAIL-PANEL HELPERS
+    # --------------------------------------------------------
+
+    st.session_state.setdefault("selected_wdpa", None)
+    st.session_state.setdefault("last_chart_pick", None)
+    st.session_state.setdefault("chart_version", 0)
+
+    def close_detail():
+        st.session_state.selected_wdpa = None
+        st.session_state.last_chart_pick = None
+        # New chart key => Plotly forgets its old selection
+        st.session_state.chart_version += 1
+
+    COUNTRY_NAMES = {
+        "ALB": "Albania", "CYP": "Cyprus", "DZA": "Algeria",
+        "EGY": "Egypt", "ESP": "Spain", "FRA": "France",
+        "GIB": "Gibraltar", "GRC": "Greece", "HRV": "Croatia",
+        "ISR": "Israel", "ITA": "Italy", "LBN": "Lebanon",
+        "MAR": "Morocco", "MCO": "Monaco", "MLT": "Malta",
+        "MNE": "Montenegro", "SVN": "Slovenia", "TUN": "Tunisia",
+        "TUR": "Türkiye",
+    }
+
+    def severity(s):
+        if s <= -0.65:
+            return "Severe candidate gap", "severe"
+        if s < -0.30:
+            return "Moderate candidate gap", "moderate"
+        if s < 0:
+            return "Mild candidate gap", "mild"
+        return "Protection signal", "protection"
+
+    SEVERITY_PALETTE = {
+        "severe":     {"bg": "#fce8e6", "border": "#f0c9c4", "fg": "#a63d32"},
+        "moderate":   {"bg": "#fbeee6", "border": "#f0d5c2", "fg": "#b5653f"},
+        "mild":       {"bg": "#faf3e4", "border": "#ecdfbf", "fg": "#896b28"},
+        "protection": {"bg": "#e9f3ec", "border": "#c9e0d1", "fg": "#377457"},
+    }
+
+    # TODO: confirm wording with the modelling team
+    LIMIT_TEXT = {
+        "cell overlap": "Main limitation: the AIS grid cells used for this "
+                        "estimate only partly overlap the protected area.",
+        "AIS coverage": "Main limitation: AIS observability in this area. "
+                        "Some fishing may not appear in vessel-tracking data.",
+        "both": "Limited both by partial overlap between the AIS grid "
+                "cells and the protected area, and by AIS observability.",
+    }
+
+    def fmt_total(value) -> str:
+        value = float(value)
+        if value >= 1000:
+            return f"{value / 1000:,.1f}k hrs"
+        if value >= 10:
+            return f"{value:,.0f} hrs"
+        return f"{value:,.1f} hrs"
 
     # ========================================================
     # STYLING
@@ -778,6 +848,150 @@ elif st.session_state.page == "candidate_gaps":
         font-size: 9px;
     }
 
+    /* ---------- selected row / scroll ---------- */
+
+    .ranking-scroll { overflow-x: auto; }
+
+    .ranking-scroll .ranking-header,
+    .ranking-scroll .ranking-row { min-width: 640px; }
+
+    .ranking-row.selected { background: #e4edf5 !important; }
+    .ranking-row.selected .ranking-name { color: #1f5f8b; }
+
+    /* ---------- detail panel ---------- */
+
+    .st-key-detail_panel {
+        background: #f7f6f2;
+        border: 1px solid #dedbd3;
+        padding: 22px 24px;
+        max-height: 720px;
+        overflow-y: auto;
+    }
+
+    .st-key-detail_close button {
+        width: 30px;
+        min-height: 0 !important;
+        height: 30px;
+        padding: 0 !important;
+        background: #f7f6f2 !important;
+        border: 1px solid #dedbd3 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .st-key-detail_close button p {
+        color: #77756e !important;
+        font-size: 15px !important;
+        line-height: 1 !important;
+    }
+
+    .detail-country {
+        color: #77756e;
+        font-family: Arial, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+    }
+
+    .detail-name {
+        font-family: Georgia, serif;
+        font-size: 20px;
+        font-weight: 600;
+        color: #262522;
+        margin-top: 4px;
+    }
+
+    .detail-hr {
+        border-top: 1px solid #e4e1da;
+        margin: 16px 0;
+    }
+
+    .detail-s-card {
+        border: 1px solid;
+        padding: 16px 18px;
+        margin-bottom: 22px;
+    }
+
+    .detail-s-label {
+        font-family: Arial, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .detail-s-value {
+        font-family: monospace;
+        font-size: 44px;
+        line-height: 1.15;
+        margin: 6px 0 4px 0;
+    }
+
+    .detail-sev {
+        font-family: Arial, sans-serif;
+        font-size: 15px;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .detail-desc {
+        color: #77756e;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .detail-section-label {
+        color: #aaa79d;
+        font-family: Arial, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .detail-effort-row,
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: monospace;
+        font-size: 12px;
+        margin-top: 10px;
+    }
+
+    .detail-effort-row span:first-child {
+        font-family: Arial, sans-serif;
+        color: #4f4d47;
+    }
+
+    .detail-track {
+        height: 4px;
+        background: #e4e1da;
+        margin-top: 6px;
+    }
+
+    .detail-track div { height: 4px; }
+
+    .detail-gap {
+        font-family: monospace;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .detail-text {
+        color: #4f4d47;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .detail-note {
+        color: #aaa79d;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.55;
+        margin-top: 8px;
+    }
+
     </style>
     """
 
@@ -916,9 +1130,12 @@ elif st.session_state.page == "candidate_gaps":
 
     assessed_df["S"] = pd.to_numeric(assessed_df["S"], errors="coerce")
     assessed_df = assessed_df.dropna(subset=["S"])
+    assessed_df["country"] = (
+        assessed_df["iso3"].map(COUNTRY_NAMES).fillna(assessed_df["iso3"])
+    )
 
     # ========================================================
-    # DISTRIBUTION
+    # DISTRIBUTION (Plotly, so dots can be clicked)
     # ========================================================
 
     st.markdown(
@@ -939,7 +1156,7 @@ elif st.session_state.page == "candidate_gaps":
             round(i * (len(sorted_sample) - 1) / 19)
             for i in range(20)
         ]
-        distribution_df = sorted_sample.iloc[positions].copy()
+        distribution_df = sorted_sample.iloc[positions].reset_index(drop=True)
     else:
         distribution_df = sorted_sample.copy()
 
@@ -950,61 +1167,123 @@ elif st.session_state.page == "candidate_gaps":
         43, 61, 38, 55, 45,
     ]
 
-    dots_html = ""
+    def dot_color_for(s):
+        if s < -0.65:
+            return "#a63d32"
+        if s < -0.30:
+            return "#c2674e"
+        if s < 0:
+            return "#c88c51"
+        if s < 0.35:
+            return "#8b8b78"
+        if s < 0.70:
+            return "#4f8568"
+        return "#28664b"
 
-    for i, (_, row) in enumerate(distribution_df.iterrows()):
+    selected_id = st.session_state.selected_wdpa
 
-        s_value = float(row["S"])
+    xs, ys, hover, colors, sizes, ring_w = [], [], [], [], [], []
 
-        left_percent = 14 + ((s_value + 1) / 2) * 72
-        top_percent = dot_heights[i % len(dot_heights)]
+    for i, (_, r) in enumerate(distribution_df.iterrows()):
+        s_val = float(r["S"])
+        is_sel = int(r["wdpa_id"]) == selected_id
 
-        if s_value < -0.65:
-            dot_color = "#a63d32"
-        elif s_value < -0.30:
-            dot_color = "#c2674e"
-        elif s_value < 0:
-            dot_color = "#c88c51"
-        elif s_value < 0.35:
-            dot_color = "#8b8b78"
-        elif s_value < 0.70:
-            dot_color = "#4f8568"
-        else:
-            dot_color = "#28664b"
+        xs.append(s_val)
+        ys.append(100 - dot_heights[i % len(dot_heights)])
+        hover.append(f'{r["mpa_name"]} · S {s_val:+.2f}')
+        colors.append(dot_color_for(s_val))
+        sizes.append(14 if is_sel else 10)
+        ring_w.append(2 if is_sel else 0)
 
-        mpa_name = html_lib.escape(
-            str(row.get("mpa_name", "Protected area")),
-            quote=True,
+    fig = go.Figure()
+
+    Y_BOTTOM, Y_TOP = 28.4, 81.8
+
+    fig.add_shape(type="rect", x0=-1, x1=0, y0=Y_BOTTOM, y1=Y_TOP,
+                  fillcolor="#fbf4f1", line_width=0, layer="below")
+    fig.add_shape(type="rect", x0=0, x1=1, y0=Y_BOTTOM, y1=Y_TOP,
+                  fillcolor="#f1f6f2", line_width=0, layer="below")
+    fig.add_shape(type="line", x0=-1, x1=1, y0=Y_BOTTOM, y1=Y_BOTTOM,
+                  line=dict(color="#d5d2ca", width=1), layer="below")
+    fig.add_shape(type="line", x0=0, x1=0, y0=Y_BOTTOM, y1=Y_TOP,
+                  line=dict(color="#d5d2ca", width=1), layer="below")
+
+    for tick, label in [(-1, "−1"), (-0.5, "−0.5"), (0, "0"),
+                        (0.5, "+0.5"), (1, "+1")]:
+        fig.add_shape(type="line", x0=tick, x1=tick,
+                      y0=Y_BOTTOM, y1=Y_BOTTOM - 4,
+                      line=dict(color="#d5d2ca", width=1), layer="below")
+        fig.add_annotation(x=tick, y=17, text=label, showarrow=False,
+                           font=dict(family="monospace", size=10,
+                                     color="#aaa79d"))
+
+    fig.add_annotation(x=-1, y=4, xanchor="left", showarrow=False,
+                       text="<i>← candidate gap</i>",
+                       font=dict(family="Arial", size=10, color="#b25b49"))
+    fig.add_annotation(x=0, y=4, showarrow=False, text="baseline",
+                       font=dict(family="Arial", size=10, color="#aaa79d"))
+    fig.add_annotation(x=1, y=4, xanchor="right", showarrow=False,
+                       text="<i>protection signal →</i>",
+                       font=dict(family="Arial", size=10, color="#377457"))
+
+    fig.add_trace(
+        go.Scatter(
+            x=xs,
+            y=ys,
+            mode="markers",
+            text=hover,
+            hovertemplate="%{text}<extra></extra>",
+            marker=dict(
+                size=sizes,
+                color=colors,
+                line=dict(width=ring_w, color="#262522"),
+            ),
+            selected=dict(marker=dict(opacity=1)),
+            unselected=dict(marker=dict(opacity=1)),
+            hoverlabel=dict(
+                bgcolor="#262522",
+                bordercolor="#262522",
+                font=dict(family="Arial", size=11, color="#ffffff"),
+            ),
         )
-
-        dots_html += (
-            f'<div class="distribution-dot" title="{mpa_name}" '
-            f'style="left:{left_percent:.2f}%;top:{top_percent}%;'
-            f'background:{dot_color};"></div>'
-        )
-
-    ticks_html = "".join(
-        f'<div class="distribution-tick" style="left:{pos}%;">{label}</div>'
-        for pos, label in [
-            (14, "−1"), (32, "−0.5"), (50, "0"), (68, "+0.5"), (86, "+1"),
-        ]
     )
 
-    distribution_html = (
-        '<div class="distribution-box">'
-        '<div class="distribution-negative"></div>'
-        '<div class="distribution-positive"></div>'
-        '<div class="distribution-axis"></div>'
-        '<div class="distribution-zero"></div>'
-        + dots_html
-        + ticks_html
-        + '<div class="distribution-note-left">← candidate gap</div>'
-        + '<div class="distribution-baseline">baseline</div>'
-        + '<div class="distribution-note-right">protection signal →</div>'
-        + "</div>"
+    # x range chosen so -1 and +1 sit at 14% and 86% of the width
+    fig.update_layout(
+        height=148,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="#f7f6f2",
+        plot_bgcolor="#f7f6f2",
+        showlegend=False,
+        xaxis=dict(range=[-1.389, 1.389], visible=False, fixedrange=True),
+        yaxis=dict(range=[0, 100], visible=False, fixedrange=True),
     )
 
-    st.markdown(distribution_html, unsafe_allow_html=True)
+    event = st.plotly_chart(
+        fig,
+        theme=None,
+        key=f"dist_chart_{st.session_state.chart_version}",
+        on_select="rerun",
+        selection_mode="points",
+        config={"displayModeBar": False},
+    )
+
+    picked = None
+    try:
+        pts = event.selection.points
+        if pts:
+            picked = int(
+                distribution_df.iloc[pts[0]["point_index"]]["wdpa_id"]
+            )
+    except Exception:
+        picked = None
+
+    # Only react when the chart selection actually CHANGES, so that
+    # closing the panel / (later) selecting a table row isn't undone.
+    if picked != st.session_state.last_chart_pick:
+        st.session_state.last_chart_pick = picked
+        st.session_state.selected_wdpa = picked
+        st.rerun()
 
     # ========================================================
     # FILTER BAR
@@ -1027,7 +1306,7 @@ elif st.session_state.page == "candidate_gaps":
 
         with f2:
             countries = ["All countries"] + sorted(
-                assessed_df["iso3"].dropna().astype(str).unique().tolist()
+                assessed_df["country"].dropna().astype(str).unique().tolist()
             )
             selected_country = st.selectbox(
                 "Country",
@@ -1045,11 +1324,13 @@ elif st.session_state.page == "candidate_gaps":
             )
 
         with f4:
-            selected_restriction = st.selectbox(
+            # No fishing-rules data yet: placeholder, disabled.
+            st.selectbox(
                 "Fishing rules",
-                ["Restricted", "All rules"],
+                ["Fishing rules: any"],
                 label_visibility="collapsed",
                 key="candidate_restriction",
+                disabled=True,
             )
 
         with f5:
@@ -1086,6 +1367,9 @@ elif st.session_state.page == "candidate_gaps":
             .str.lower().str.contains(q, regex=False)
         )
         country_match = (
+            filtered_df["country"].fillna("").astype(str)
+            .str.lower().str.contains(q, regex=False)
+        ) | (
             filtered_df["iso3"].fillna("").astype(str)
             .str.lower().str.contains(q, regex=False)
         )
@@ -1093,7 +1377,7 @@ elif st.session_state.page == "candidate_gaps":
 
     if selected_country != "All countries":
         filtered_df = filtered_df[
-            filtered_df["iso3"].astype(str) == selected_country
+            filtered_df["country"].astype(str) == selected_country
         ]
 
     if selected_confidence != "All confidence levels":
@@ -1108,19 +1392,211 @@ elif st.session_state.page == "candidate_gaps":
         filtered_df = filtered_df[filtered_df["S"] >= 0]
 
     # ========================================================
-    # TABLE
+    # DETAIL PANEL
     # ========================================================
 
-    st.markdown(
-        clean_html(
-            """
-            <div class="table-caption">
-                Protected areas · sorted by candidate gap
-            </div>
-            """
-        ),
-        unsafe_allow_html=True,
-    )
+    def render_detail(row):
+
+        s_value = float(row["S"])
+        sev_label, sev_key = severity(s_value)
+        pal = SEVERITY_PALETTE[sev_key]
+
+        name = html_lib.escape(str(row["mpa_name"]))
+        country = html_lib.escape(str(row["country"]))
+
+        expected = float(row["expected_hours_inside"])
+        gap_pq = float(row["abs_gap_hours"])          # P - O
+        observed = max(0.0, expected - gap_pq)        # O = P - (P - O)
+
+        scale = max(observed, expected, 1e-9)
+        obs_w = observed / scale * 100
+        exp_w = expected / scale * 100
+
+        try:
+            period = (
+                f"{pd.Timestamp(row['first_month']).year}–"
+                f"{pd.Timestamp(row['last_month']).year}"
+            )
+        except Exception:
+            period = "analysis period"
+
+        confidence = str(row["confidence"]).strip()
+        conf_class = {
+            "high": "confidence-high",
+            "medium": "confidence-medium",
+            "low": "confidence-low",
+        }.get(confidence.lower(), "confidence-medium")
+
+        limited_by = str(row.get("confidence_limited_by", "") or "").strip()
+        conf_text = LIMIT_TEXT.get(
+            limited_by,
+            f"Main limitation: {html_lib.escape(limited_by)}."
+            if limited_by
+            else "No specific limitation recorded.",
+        )
+
+        if s_value < 0:
+            s_desc = (
+                "Observed fishing effort exceeds the modelled counterfactual. "
+                "This is a signal for investigation."
+            )
+            gap_desc = (
+                "Excess hours represent the absolute scale of the "
+                "observed–expected discrepancy. A large absolute gap at a "
+                "moderate relative gap can still represent a substantial "
+                "enforcement challenge."
+            )
+            gap_color = "#a63d2d"
+        else:
+            s_desc = (
+                "Observed fishing effort is below the modelled counterfactual. "
+                "This is consistent with a protection effect but does not "
+                "prove one."
+            )
+            gap_desc = (
+                "Negative hours mean less fishing was observed than the "
+                "model expected."
+            )
+            gap_color = "#377457"
+
+        iucn = html_lib.escape(str(row.get("iucn_cat", "—")))
+        site_type = html_lib.escape(str(row.get("site_type", "—")))
+        status_year = row.get("status_year", None)
+        area = row.get("area_km2", None)
+        n_cells = row.get("n_cells", None)
+
+        context_bits = [
+            f"IUCN category: {iucn}",
+            f"Site type: {site_type}",
+        ]
+        if pd.notna(status_year):
+            context_bits.append(f"Status year: {int(status_year)}")
+        if pd.notna(area):
+            context_bits.append(f"Area: {float(area):,.1f} km²")
+        if pd.notna(n_cells):
+            context_bits.append(f"AIS grid cells used: {int(n_cells):,}")
+        context_html = "<br>".join(context_bits)
+
+        head_l, head_r = st.columns([6, 1], gap="small")
+
+        with head_l:
+            st.markdown(
+                clean_html(
+                    f"""
+                    <div class="detail-country">{country.upper()}</div>
+                    <div class="detail-name">{name}</div>
+                    """
+                ),
+                unsafe_allow_html=True,
+            )
+
+        with head_r:
+            st.button(
+                "×",
+                key="detail_close",
+                type="secondary",
+                on_click=close_detail,
+            )
+
+        st.markdown(
+            clean_html(
+                f"""
+                <div class="detail-hr"></div>
+
+                <div class="detail-s-card"
+                     style="background:{pal['bg']};border-color:{pal['border']};">
+                    <div class="detail-s-label" style="color:{pal['fg']};">
+                        S / candidate gap index
+                    </div>
+                    <div class="detail-s-value" style="color:{pal['fg']};">
+                        {s_value:+.2f}
+                    </div>
+                    <div class="detail-sev" style="color:{pal['fg']};">
+                        {sev_label}
+                    </div>
+                    <div class="detail-desc">{s_desc}</div>
+                </div>
+
+                <div class="detail-section-label">
+                    Effort comparison (total hours, {period})
+                </div>
+
+                <div class="detail-effort-row">
+                    <span>Observed effort</span>
+                    <span style="color:#a63d32;">{fmt_total(observed)}</span>
+                </div>
+                <div class="detail-track">
+                    <div style="width:{obs_w:.1f}%;background:#a63d32;"></div>
+                </div>
+
+                <div class="detail-effort-row">
+                    <span>Expected effort (counterfactual)</span>
+                    <span style="color:#1f5f8b;">{fmt_total(expected)}</span>
+                </div>
+                <div class="detail-track">
+                    <div style="width:{exp_w:.1f}%;background:#1f5f8b;"></div>
+                </div>
+
+                <div class="detail-hr"></div>
+
+                <div class="detail-row">
+                    <span class="detail-text">Absolute gap</span>
+                    <span class="detail-gap" style="color:{gap_color};">
+                        {fmt_hours(gap_pq)}
+                    </span>
+                </div>
+                <div class="detail-note">{gap_desc}</div>
+
+                <div class="detail-hr"></div>
+
+                <div class="detail-row">
+                    <span class="detail-section-label">Confidence</span>
+                    <span class="confidence-tag {conf_class}">
+                        {html_lib.escape(confidence.capitalize())}
+                    </span>
+                </div>
+                <div class="detail-text">{conf_text}</div>
+
+                <div class="detail-hr"></div>
+
+                <div class="detail-row">
+                    <span class="detail-section-label">Fishing rules</span>
+                </div>
+                <div class="detail-note">Not available yet.</div>
+
+                <div class="detail-hr"></div>
+
+                <div class="detail-section-label">Context</div>
+                <div class="detail-text">{context_html}</div>
+
+                <div class="detail-hr"></div>
+
+                <div class="detail-section-label">Caveat</div>
+                <div class="detail-note">
+                    A candidate gap is a signal for investigation, not proof
+                    of illegal fishing or failed enforcement.
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+    # ========================================================
+    # TABLE (+ detail panel when something is selected)
+    # ========================================================
+
+    selected_row = None
+    if st.session_state.selected_wdpa is not None:
+        match = assessed_df[
+            assessed_df["wdpa_id"] == st.session_state.selected_wdpa
+        ]
+        if len(match):
+            selected_row = match.iloc[0]
+
+    if selected_row is not None:
+        table_col, panel_col = st.columns([1.85, 1], gap="large")
+    else:
+        table_col, panel_col = st.container(), None
 
     table_df = filtered_df.sort_values("S", ascending=True).copy()
 
@@ -1129,7 +1605,7 @@ elif st.session_state.page == "candidate_gaps":
     for _, row in table_df.head(10).iterrows():
 
         name = html_lib.escape(str(row.get("mpa_name", "Unnamed MPA")))
-        country = html_lib.escape(str(row.get("iso3", "—")))
+        country = html_lib.escape(str(row.get("country", "—")))
         s_value = float(row.get("S", 0))
         gap_text = fmt_hours(row.get("abs_gap_hours", None))
 
@@ -1143,17 +1619,18 @@ elif st.session_state.page == "candidate_gaps":
 
         color = "#a63d32" if s_value < 0 else "#377457"
 
-        # Diverging bar: grows LEFT from the centre tick when S < 0,
-        # RIGHT when S >= 0 (like the mockup).
         half = 29
         fill_w = min(half, abs(s_value) * half)
         fill_left = half - fill_w if s_value < 0 else half
 
-        # No fishing-rules column in the parquet yet -> don't invent one.
-        rule_text = "—"
+        is_selected = (
+            selected_row is not None
+            and int(row["wdpa_id"]) == int(selected_row["wdpa_id"])
+        )
+        row_class = "ranking-row selected" if is_selected else "ranking-row"
 
         rows_html += (
-            '<div class="ranking-row">'
+            f'<div class="{row_class}">'
             f'<div class="ranking-name">{name}</div>'
             f'<div class="ranking-country">{country}</div>'
             '<div class="ranking-s">'
@@ -1163,10 +1640,11 @@ elif st.session_state.page == "candidate_gaps":
             f'<span class="ranking-s-fill" style="left:{fill_left:.1f}px;'
             f'width:{fill_w:.1f}px;background:{color};"></span>'
             '</span></div>'
-            f'<div class="ranking-gap">{gap_text}</div>'
+            f'<div class="ranking-gap" style="color:{color};">'
+            f'{gap_text}</div>'
             f'<div><span class="confidence-tag {confidence_class}">'
             f'{html_lib.escape(confidence.capitalize())}</span></div>'
-            f'<div><span class="rule-tag">{rule_text}</span></div>'
+            '<div></div>'   # fishing rules: intentionally blank for now
             '</div>'
         )
 
@@ -1178,6 +1656,7 @@ elif st.session_state.page == "candidate_gaps":
         )
 
     table_html = (
+        '<div class="ranking-scroll">'
         '<div class="ranking-header">'
         '<div>Protected area ↕</div>'
         '<div>Country ↕</div>'
@@ -1187,6 +1666,23 @@ elif st.session_state.page == "candidate_gaps":
         '<div>Fishing rules</div>'
         '</div>'
         + rows_html
+        + '</div>'
     )
 
-    st.markdown(table_html, unsafe_allow_html=True)
+    with table_col:
+        st.markdown(
+            clean_html(
+                """
+                <div class="table-caption">
+                    Protected areas · sorted by candidate gap
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(table_html, unsafe_allow_html=True)
+
+    if panel_col is not None:
+        with panel_col:
+            with st.container(key="detail_panel"):
+                render_detail(selected_row)
