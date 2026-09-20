@@ -302,334 +302,476 @@ if st.session_state.page == "welcome":
 
 elif st.session_state.page == "candidate_gaps":
 
-    # --------------------------------------------------------
-    # CANDIDATE GAPS PAGE STYLES
-    # --------------------------------------------------------
+    import textwrap
+
+    # ========================================================
+    # CANDIDATE PAGE STYLING
+    # ========================================================
 
     st.markdown(
-        """
-        <style>
+        textwrap.dedent(
+            """
+            <style>
 
-        /* Candidate page navigation */
+            /* -----------------------------------------------
+               PAGE
+            ----------------------------------------------- */
 
-        .candidate-nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #deddd7;
-            padding: 0 0 0 0;
-            margin-bottom: 38px;
-            height: 58px;
-        }
+            .candidate-page-spacer {
+                height: 4px;
+            }
 
-        .candidate-brand {
-            font-family: Georgia, serif;
-            font-size: 15px;
-            font-weight: 600;
-            color: #262522;
-            white-space: nowrap;
-        }
+            /* -----------------------------------------------
+               TOP NAVIGATION
+            ----------------------------------------------- */
 
-        .candidate-brand-sub {
-            font-family: Arial, sans-serif;
-            font-size: 9px;
-            letter-spacing: 0.13em;
-            color: #aaa79d;
-            margin-top: 4px;
-        }
+            .candidate-nav-subtitle {
+                color: #aaa79d;
+                font-family: Arial, sans-serif;
+                font-size: 8px;
+                letter-spacing: 0.14em;
+                margin-top: -10px;
+                margin-left: 34px;
+                white-space: nowrap;
+            }
 
-        .candidate-logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
+            .candidate-active-nav {
+                color: #1f5f8b;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+                padding: 11px 8px 13px 8px;
+                border-bottom: 2px solid #1f5f8b;
+                white-space: nowrap;
+            }
 
-        .candidate-logo-mark {
-            width: 22px;
-            height: 22px;
-            border: 1.5px solid #1f5f8b;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: #1f5f8b;
-            font-size: 11px;
-        }
+            /*
+               Streamlit buttons normally inherit the blue
+               Welcome-page button styling. On this page we
+               deliberately remove that appearance.
+            */
 
-        .candidate-section-label {
-            color: #a29f94;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.13em;
-            text-transform: uppercase;
-        }
+            div[data-testid="stButton"] > button[kind="tertiary"] {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                color: #77756e !important;
+                border-radius: 0 !important;
+                font-family: Arial, sans-serif !important;
+                font-size: 12px !important;
+                font-weight: 400 !important;
+                padding: 10px 8px 13px 8px !important;
+                min-height: 0 !important;
+            }
 
-        .candidate-description {
-            color: #77756e;
-            font-size: 13px;
-            line-height: 1.55;
-            max-width: 670px;
-        }
+            div[data-testid="stButton"] > button[kind="tertiary"]:hover {
+                background: transparent !important;
+                color: #262522 !important;
+            }
 
-        .candidate-count {
-            text-align: center;
-        }
+            div[data-testid="stButton"] > button[kind="tertiary"]:focus {
+                box-shadow: none !important;
+            }
 
-        .candidate-count-number {
-            font-family: Georgia, serif;
-            font-size: 27px;
-            color: #1f5f8b;
-            line-height: 1;
-        }
+            /* Logo button */
 
-        .candidate-count-number.muted {
-            color: #aaa79d;
-        }
+            .logo-button {
+                color: #262522 !important;
+            }
 
-        .candidate-count-label {
-            color: #aaa79d;
-            font-size: 10px;
-            margin-top: 7px;
-        }
+            /* -----------------------------------------------
+               INTRO
+            ----------------------------------------------- */
 
-        /* Distribution */
+            .candidate-title {
+                font-family: Georgia, serif;
+                font-size: 26px;
+                font-weight: 600;
+                line-height: 1.2;
+                color: #262522;
+                margin: 0;
+            }
 
-        .distribution-label {
-            color: #aaa79d;
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            margin-bottom: 9px;
-        }
+            .candidate-description {
+                color: #77756e;
+                font-family: Arial, sans-serif;
+                font-size: 13px;
+                line-height: 1.55;
+                max-width: 690px;
+                margin-top: 10px;
+            }
 
-        .distribution-box {
-            position: relative;
-            height: 150px;
-            border: 1px solid #deddd7;
-            background: #f7f6f2;
-            overflow: hidden;
-        }
+            .candidate-count-number {
+                font-family: Georgia, serif;
+                font-size: 26px;
+                line-height: 1;
+                text-align: center;
+            }
 
-        .distribution-negative {
-            position: absolute;
-            left: 14%;
-            right: 50%;
-            top: 28px;
-            bottom: 42px;
-            background: #fbf3f0;
-        }
+            .candidate-count-label {
+                font-family: Arial, sans-serif;
+                color: #aaa79d;
+                font-size: 9px;
+                text-align: center;
+                margin-top: 7px;
+            }
 
-        .distribution-positive {
-            position: absolute;
-            left: 50%;
-            right: 14%;
-            top: 28px;
-            bottom: 42px;
-            background: #f1f6f1;
-        }
+            /* -----------------------------------------------
+               DISTRIBUTION
+            ----------------------------------------------- */
 
-        .distribution-axis {
-            position: absolute;
-            left: 14%;
-            right: 14%;
-            bottom: 42px;
-            height: 1px;
-            background: #d4d1c8;
-        }
+            .distribution-label {
+                color: #aaa79d;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+                font-weight: 600;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                margin-bottom: 11px;
+            }
 
-        .distribution-zero {
-            position: absolute;
-            left: 50%;
-            top: 28px;
-            bottom: 42px;
-            width: 1px;
-            background: #d4d1c8;
-        }
+            .distribution-box {
+                position: relative;
+                width: 100%;
+                height: 148px;
+                border: 1px solid #deddd7;
+                background: #f7f6f2;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
 
-        .distribution-dot {
-            position: absolute;
-            width: 11px;
-            height: 11px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
+            .distribution-negative {
+                position: absolute;
+                left: 14%;
+                right: 50%;
+                top: 27px;
+                bottom: 42px;
+                background: #fbf4f1;
+            }
 
-        .distribution-tick {
-            position: absolute;
-            bottom: 14px;
-            transform: translateX(-50%);
-            color: #aaa79d;
-            font-family: monospace;
-            font-size: 9px;
-        }
+            .distribution-positive {
+                position: absolute;
+                left: 50%;
+                right: 14%;
+                top: 27px;
+                bottom: 42px;
+                background: #f1f6f2;
+            }
 
-        .distribution-note-left {
-            position: absolute;
-            left: 14%;
-            bottom: 1px;
-            transform: translateX(10%);
-            color: #b25b49;
-            font-size: 9px;
-            font-style: italic;
-        }
+            .distribution-axis {
+                position: absolute;
+                left: 14%;
+                right: 14%;
+                bottom: 42px;
+                height: 1px;
+                background: #d5d2ca;
+            }
 
-        .distribution-note-right {
-            position: absolute;
-            right: 14%;
-            bottom: 1px;
-            transform: translateX(-10%);
-            color: #377457;
-            font-size: 9px;
-            font-style: italic;
-        }
+            .distribution-zero {
+                position: absolute;
+                left: 50%;
+                top: 27px;
+                bottom: 42px;
+                width: 1px;
+                background: #d5d2ca;
+            }
 
-        /* Filter bar */
+            .distribution-dot {
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+            }
 
-        .filter-shell {
-            background: #eeece6;
-            border: 1px solid #dedbd3;
-            padding: 10px;
-            margin-top: 26px;
-            margin-bottom: 25px;
-        }
+            .distribution-tick {
+                position: absolute;
+                bottom: 14px;
+                transform: translateX(-50%);
+                color: #aaa79d;
+                font-family: monospace;
+                font-size: 9px;
+            }
 
-        /* Ranking table */
+            .distribution-note-left {
+                position: absolute;
+                left: 14%;
+                bottom: 1px;
+                color: #b25b49;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+                font-style: italic;
+            }
 
-        .ranking-header {
-            display: grid;
-            grid-template-columns: 2.25fr 0.9fr 1.45fr 1.25fr 1.05fr;
-            align-items: center;
-            padding: 0 14px 10px 14px;
-            border-bottom: 1px solid #cfcac0;
-            color: #77756e;
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
+            .distribution-note-right {
+                position: absolute;
+                right: 14%;
+                bottom: 1px;
+                color: #377457;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+                font-style: italic;
+            }
 
-        .ranking-row {
-            display: grid;
-            grid-template-columns: 2.25fr 0.9fr 1.45fr 1.25fr 1.05fr;
-            align-items: center;
-            min-height: 54px;
-            padding: 0 14px;
-            border-bottom: 1px solid #e5e2db;
-            background: #f7f6f2;
-        }
+            /* -----------------------------------------------
+               FILTER BAR
+            ----------------------------------------------- */
 
-        .ranking-row:nth-child(even) {
-            background: #f3f2ee;
-        }
+            .filter-shell {
+                background: #eeece6;
+                border: 1px solid #dedbd3;
+                padding: 10px;
+                margin-top: 26px;
+                margin-bottom: 24px;
+            }
 
-        .ranking-name {
-            color: #262522;
-            font-size: 12px;
-            font-weight: 500;
-        }
+            /*
+               Search field
+            */
 
-        .ranking-country {
-            color: #77756e;
-            font-size: 12px;
-        }
+            div[data-testid="stTextInput"] input {
+                background: #f7f6f2 !important;
+                border: 1px solid #dedbd3 !important;
+                border-radius: 0 !important;
+                color: #4f4d47 !important;
+                font-family: Arial, sans-serif !important;
+                font-size: 12px !important;
+                height: 38px !important;
+            }
 
-        .ranking-s {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
+            div[data-testid="stTextInput"] input:focus {
+                border: 1px solid #9d9a91 !important;
+                box-shadow: none !important;
+            }
 
-        .ranking-s-value {
-            font-family: monospace;
-            font-size: 12px;
-            font-weight: 600;
-            min-width: 43px;
-        }
+            /*
+               Select boxes
+            */
 
-        .ranking-s-bar {
-            width: 58px;
-            height: 4px;
-            background: #deddd7;
-            position: relative;
-        }
+            div[data-testid="stSelectbox"] > div > div {
+                background: #f7f6f2 !important;
+                border: 1px solid #dedbd3 !important;
+                border-radius: 0 !important;
+                min-height: 38px !important;
+                color: #5f5d57 !important;
+            }
 
-        .ranking-s-fill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 4px;
-        }
+            div[data-testid="stSelectbox"] [data-baseweb="select"] {
+                border-radius: 0 !important;
+            }
 
-        .ranking-gap {
-            color: #a63d2d;
-            font-family: monospace;
-            font-size: 12px;
-        }
+            div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+                background: #f7f6f2 !important;
+                border-radius: 0 !important;
+            }
 
-        .confidence-tag {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 600;
-        }
+            div[data-testid="stSelectbox"] [data-baseweb="select"] * {
+                font-family: Arial, sans-serif !important;
+                font-size: 12px !important;
+                color: #5f5d57 !important;
+            }
 
-        .confidence-high {
-            background: #dfeee5;
-            color: #387256;
-        }
+            /*
+               Clear filters button
+            */
 
-        .confidence-medium {
-            background: #f3ecd9;
-            color: #896b28;
-        }
+            div[data-testid="stButton"] > button[kind="secondary"] {
+                background: #e8f0f5 !important;
+                border: 1px solid #d3e1ea !important;
+                border-radius: 0 !important;
+                color: #35617e !important;
+                font-family: Arial, sans-serif !important;
+                font-size: 11px !important;
+                font-weight: 400 !important;
+                box-shadow: none !important;
+                min-height: 38px !important;
+            }
 
-        .confidence-low {
-            background: #eee5e3;
-            color: #87594e;
-        }
+            div[data-testid="stButton"] > button[kind="secondary"]:hover {
+                background: #e1ebf1 !important;
+                border-color: #c6d9e5 !important;
+                color: #2d5871 !important;
+            }
 
-        .rules-placeholder {
-            display: inline-block;
-            background: #dfebf4;
-            color: #35617e;
-            padding: 5px 8px;
-            border-radius: 4px;
-            font-size: 9px;
-        }
+            /* -----------------------------------------------
+               TABLE
+            ----------------------------------------------- */
 
-        </style>
-        """,
+            .table-caption {
+                color: #aaa79d;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+                font-weight: 600;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                margin-bottom: 10px;
+            }
+
+            .ranking-header {
+                display: grid;
+                grid-template-columns:
+                    2.15fr
+                    0.72fr
+                    1.35fr
+                    1.15fr
+                    1.05fr
+                    1.25fr;
+
+                align-items: center;
+
+                padding: 0 14px 10px 14px;
+
+                border-bottom: 1px solid #cfcac0;
+
+                color: #77756e;
+
+                font-family: Arial, sans-serif;
+
+                font-size: 9px;
+
+                font-weight: 600;
+
+                letter-spacing: 0.09em;
+
+                text-transform: uppercase;
+            }
+
+            .ranking-row {
+                display: grid;
+                grid-template-columns:
+                    2.15fr
+                    0.72fr
+                    1.35fr
+                    1.15fr
+                    1.05fr
+                    1.25fr;
+
+                align-items: center;
+
+                min-height: 55px;
+
+                padding: 0 14px;
+
+                border-bottom: 1px solid #e4e1da;
+
+                background: #f7f6f2;
+
+                box-sizing: border-box;
+            }
+
+            .ranking-row:nth-child(even) {
+                background: #f3f2ee;
+            }
+
+            .ranking-name {
+                color: #262522;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .ranking-country {
+                color: #77756e;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+            }
+
+            .ranking-s {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+            }
+
+            .ranking-s-value {
+                font-family: monospace;
+                font-size: 12px;
+                font-weight: 600;
+                min-width: 42px;
+            }
+
+            .ranking-s-bar {
+                width: 58px;
+                height: 4px;
+                background: #deddd7;
+                position: relative;
+            }
+
+            .ranking-s-fill {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 4px;
+            }
+
+            .ranking-gap {
+                color: #a63d2d;
+                font-family: monospace;
+                font-size: 12px;
+            }
+
+            .confidence-tag {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+                font-weight: 600;
+            }
+
+            .confidence-high {
+                background: #dfeee5;
+                color: #387256;
+            }
+
+            .confidence-medium {
+                background: #f3ecd9;
+                color: #896b28;
+            }
+
+            .confidence-low {
+                background: #eee5e3;
+                color: #87594e;
+            }
+
+            .rule-tag {
+                display: inline-block;
+                background: #dfebf4;
+                color: #35617e;
+                padding: 5px 8px;
+                border-radius: 4px;
+                font-family: Arial, sans-serif;
+                font-size: 9px;
+            }
+
+            </style>
+            """
+        ),
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOP NAVIGATION
-    # --------------------------------------------------------
+    # ========================================================
 
-    nav_left, nav_candidate, nav_not_assessed, nav_method = st.columns(
-        [3.8, 1, 1, 1],
+    nav_logo, nav_candidate, nav_not, nav_method = st.columns(
+        [4.7, 1, 1, 1],
         gap="small",
     )
 
-    with nav_left:
+    with nav_logo:
+
         if st.button(
             "◯  MPA Enforcement Intelligence",
             key="candidate_logo",
+            type="tertiary",
         ):
             st.session_state.page = "welcome"
             st.rerun()
 
         st.markdown(
             """
-            <div style="
-                margin-left:31px;
-                margin-top:-15px;
-                color:#aaa79d;
-                font-size:8px;
-                letter-spacing:0.13em;
-            ">
+            <div class="candidate-nav-subtitle">
                 MEDITERRANEAN · DECISION SUPPORT
             </div>
             """,
@@ -637,93 +779,91 @@ elif st.session_state.page == "candidate_gaps":
         )
 
     with nav_candidate:
+
         st.markdown(
             """
-            <div style="
-                color:#1f5f8b;
-                font-size:12px;
-                font-weight:600;
-                text-align:center;
-                padding-top:10px;
-                padding-bottom:12px;
-                border-bottom:2px solid #1f5f8b;
-            ">
+            <div class="candidate-active-nav">
                 Candidate gaps
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    with nav_not_assessed:
-        if st.button(
+    with nav_not:
+
+        st.button(
             "Not assessed",
-            key="candidate_nav_not_assessed",
-        ):
-            st.session_state.page = "not_assessed"
-            st.rerun()
+            key="candidate_not_assessed_nav",
+            type="tertiary",
+        )
 
     with nav_method:
-        if st.button(
+
+        st.button(
             "Methodology",
-            key="candidate_nav_methodology",
-        ):
-            st.session_state.page = "methodology"
-            st.rerun()
+            key="candidate_methodology_nav",
+            type="tertiary",
+        )
 
-    # --------------------------------------------------------
-    # PAGE INTRO
-    # --------------------------------------------------------
+    # ========================================================
+    # INTRO
+    # ========================================================
 
-    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='candidate-page-spacer'></div>",
+        unsafe_allow_html=True,
+    )
 
-    intro_left, intro_count_1, intro_count_2 = st.columns(
-        [5.4, 1, 1],
+    intro, count_a, count_b = st.columns(
+        [5.3, 1, 1],
         gap="large",
     )
 
-    with intro_left:
+    with intro:
 
         st.markdown(
             """
-            <div style="
-                font-family:Georgia, serif;
-                font-size:25px;
-                font-weight:600;
-                color:#262522;
-                margin-bottom:8px;
-            ">
+            <div class="candidate-title">
                 Candidate Gap Index — S
             </div>
 
             <div class="candidate-description">
                 S measures how much observed industrial fishing effort differs
                 from modelled counterfactual effort. Negative values indicate
-                more fishing than expected; positive values indicate less.
-                A low score is a signal for investigation only.
+                more fishing than expected; positive values indicate less. A low
+                score is a signal for investigation only.
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    with intro_count_1:
+    with count_a:
 
         st.markdown(
             """
-            <div class="candidate-count">
-                <div class="candidate-count-number">1,288</div>
-                <div class="candidate-count-label">assessed MPAs</div>
+            <div class="candidate-count-number"
+                 style="color:#1f5f8b;">
+                1,288
+            </div>
+
+            <div class="candidate-count-label">
+                assessed MPAs
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    with intro_count_2:
+    with count_b:
 
         st.markdown(
             """
-            <div class="candidate-count">
-                <div class="candidate-count-number muted">117</div>
-                <div class="candidate-count-label">not assessed</div>
+            <div class="candidate-count-number"
+                 style="color:#aaa79d;">
+                117
+            </div>
+
+            <div class="candidate-count-label">
+                not assessed
             </div>
             """,
             unsafe_allow_html=True,
@@ -740,22 +880,26 @@ elif st.session_state.page == "candidate_gaps":
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # DATA
-    # --------------------------------------------------------
+    # ========================================================
+    # LOAD ASSESSED DATA
+    # ========================================================
 
-    assessed_df = df[df["assessed"] == True].copy()
+    assessed_df = df[
+        df["assessed"] == True
+    ].copy()
 
     assessed_df["S"] = pd.to_numeric(
         assessed_df["S"],
         errors="coerce",
     )
 
-    assessed_df = assessed_df.dropna(subset=["S"])
+    assessed_df = assessed_df.dropna(
+        subset=["S"]
+    )
 
-    # --------------------------------------------------------
-    # S DISTRIBUTION
-    # --------------------------------------------------------
+    # ========================================================
+    # DISTRIBUTION LABEL
+    # ========================================================
 
     st.markdown(
         """
@@ -766,24 +910,46 @@ elif st.session_state.page == "candidate_gaps":
         unsafe_allow_html=True,
     )
 
-    # Select 20 real MPAs distributed across the S range.
-    sorted_sample = assessed_df.sort_values("S").reset_index(drop=True)
+    # ========================================================
+    # SELECT 20 REAL MPAs ACROSS THE S RANGE
+    # ========================================================
+
+    sorted_sample = (
+        assessed_df
+        .sort_values("S")
+        .reset_index(drop=True)
+    )
 
     if len(sorted_sample) > 20:
-        sample_positions = [
-            round(i * (len(sorted_sample) - 1) / 19)
+
+        positions = [
+            round(
+                i * (len(sorted_sample) - 1) / 19
+            )
             for i in range(20)
         ]
-        distribution_df = sorted_sample.iloc[
-            sample_positions
-        ].copy()
+
+        distribution_df = (
+            sorted_sample.iloc[positions]
+            .copy()
+        )
+
     else:
-        distribution_df = sorted_sample.copy()
+
+        distribution_df = (
+            sorted_sample.copy()
+        )
+
+    # ========================================================
+    # BUILD DISTRIBUTION HTML
+    # ========================================================
 
     distribution_html = """
     <div class="distribution-box">
+
         <div class="distribution-negative"></div>
         <div class="distribution-positive"></div>
+
         <div class="distribution-axis"></div>
         <div class="distribution-zero"></div>
     """
@@ -801,7 +967,10 @@ elif st.session_state.page == "candidate_gaps":
 
         s_value = float(row["S"])
 
-        left_percent = 14 + ((s_value + 1) / 2) * 72
+        left_percent = (
+            14
+            + ((s_value + 1) / 2) * 72
+        )
 
         top_percent = dot_heights[
             i % len(dot_heights)
@@ -809,35 +978,69 @@ elif st.session_state.page == "candidate_gaps":
 
         if s_value < -0.65:
             dot_color = "#a63d32"
-        elif s_value < -0.3:
+
+        elif s_value < -0.30:
             dot_color = "#c2674e"
+
         elif s_value < 0:
             dot_color = "#c88c51"
+
         elif s_value < 0.35:
             dot_color = "#8b8b78"
-        elif s_value < 0.7:
+
+        elif s_value < 0.70:
             dot_color = "#4f8568"
+
         else:
             dot_color = "#28664b"
 
+        mpa_name = str(
+            row.get(
+                "mpa_name",
+                "Protected area",
+            )
+        ).replace(
+            '"',
+            "&quot;",
+        )
+
         distribution_html += f"""
-            <div
-                class="distribution-dot"
-                title="{str(row.get('mpa_name', 'MPA'))}"
-                style="
-                    left:{left_percent:.2f}%;
-                    top:{top_percent}%;
-                    background:{dot_color};
-                "
-            ></div>
+        <div
+            class="distribution-dot"
+            title="{mpa_name}"
+            style="
+                left:{left_percent:.2f}%;
+                top:{top_percent}%;
+                background:{dot_color};
+            "
+        ></div>
         """
 
     distribution_html += """
-        <div class="distribution-tick" style="left:14%;">−1</div>
-        <div class="distribution-tick" style="left:32%;">−0.5</div>
-        <div class="distribution-tick" style="left:50%;">0</div>
-        <div class="distribution-tick" style="left:68%;">+0.5</div>
-        <div class="distribution-tick" style="left:86%;">+1</div>
+        <div class="distribution-tick"
+             style="left:14%;">
+            −1
+        </div>
+
+        <div class="distribution-tick"
+             style="left:32%;">
+            −0.5
+        </div>
+
+        <div class="distribution-tick"
+             style="left:50%;">
+            0
+        </div>
+
+        <div class="distribution-tick"
+             style="left:68%;">
+            +0.5
+        </div>
+
+        <div class="distribution-tick"
+             style="left:86%;">
+            +1
+        </div>
 
         <div class="distribution-note-left">
             ← candidate gap
@@ -846,115 +1049,139 @@ elif st.session_state.page == "candidate_gaps":
         <div class="distribution-note-right">
             protection signal →
         </div>
+
     </div>
     """
 
+    # IMPORTANT:
+    # dedent prevents Streamlit from interpreting the HTML
+    # as an indented Markdown code block.
+
     st.markdown(
-        distribution_html,
+        textwrap.dedent(
+            distribution_html
+        ),
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # FILTER BAR
-    # --------------------------------------------------------
+    # ========================================================
 
-    filter_container = st.container()
+    st.markdown(
+        """
+        <div style="height:1px;"></div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with filter_container:
+    st.markdown(
+        """
+        <div class="filter-shell">
+        """,
+        unsafe_allow_html=True,
+    )
 
-        f1, f2, f3, f4, f5, f6 = st.columns(
-            [2.6, 1, 1.25, 1.15, 1.15, 0.8],
-            gap="small",
+    f1, f2, f3, f4, f5, f6 = st.columns(
+        [2.65, 1.0, 1.28, 1.08, 1.12, 0.82],
+        gap="small",
+    )
+
+    with f1:
+
+        search_value = st.text_input(
+            "Search",
+            placeholder="Search by name or country...",
+            label_visibility="collapsed",
+            key="candidate_search",
         )
 
-        with f1:
-            search_value = st.text_input(
-                "Search",
-                placeholder="⌕  Search by name or country...",
-                label_visibility="collapsed",
-                key="candidate_search",
-            )
+    with f2:
 
-        with f2:
+        countries = [
+            "All countries"
+        ] + sorted(
+            assessed_df["iso3"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
 
-            countries = [
-                "All countries"
-            ] + sorted(
-                assessed_df["iso3"]
-                .dropna()
-                .astype(str)
-                .unique()
-                .tolist()
-            )
+        selected_country = st.selectbox(
+            "Country",
+            countries,
+            label_visibility="collapsed",
+            key="candidate_country",
+        )
 
-            selected_country = st.selectbox(
-                "Country",
-                countries,
-                label_visibility="collapsed",
-                key="candidate_country",
-            )
+    with f3:
 
-        with f3:
+        confidence_options = [
+            "All confidence levels",
+            "High",
+            "Medium",
+            "Low",
+        ]
 
-            confidence_options = [
-                "All confidence levels",
-                "High",
-                "Medium",
-                "Low",
-            ]
+        selected_confidence = st.selectbox(
+            "Confidence",
+            confidence_options,
+            label_visibility="collapsed",
+            key="candidate_confidence",
+        )
 
-            selected_confidence = st.selectbox(
-                "Confidence",
-                confidence_options,
-                label_visibility="collapsed",
-                key="candidate_confidence",
-            )
+    with f4:
 
-        with f4:
+        restriction_options = [
+            "Restricted",
+            "All rules",
+        ]
 
-            restriction_options = [
-                "Restricted",
-                "All rules",
-            ]
+        selected_restriction = st.selectbox(
+            "Fishing rules",
+            restriction_options,
+            label_visibility="collapsed",
+            key="candidate_restriction",
+        )
 
-            selected_restriction = st.selectbox(
-                "Fishing rules",
-                restriction_options,
-                label_visibility="collapsed",
-                key="candidate_restriction",
-            )
+    with f5:
 
-        with f5:
+        s_options = [
+            "All S values",
+            "Candidate gaps (S < 0)",
+            "Protection signal (S ≥ 0)",
+        ]
 
-            s_options = [
-                "All S values",
-                "Candidate gaps (S < 0)",
-                "Protection signal (S ≥ 0)",
-            ]
+        selected_s = st.selectbox(
+            "S range",
+            s_options,
+            label_visibility="collapsed",
+            key="candidate_s_range",
+        )
 
-            selected_s = st.selectbox(
-                "S range",
-                s_options,
-                label_visibility="collapsed",
-                key="candidate_s_range",
-            )
+    with f6:
 
-        with f6:
+        if st.button(
+            "Clear filters",
+            key="candidate_clear_filters",
+            type="secondary",
+        ):
+            st.session_state.candidate_search = ""
+            st.session_state.candidate_country = "All countries"
+            st.session_state.candidate_confidence = "All confidence levels"
+            st.session_state.candidate_restriction = "Restricted"
+            st.session_state.candidate_s_range = "All S values"
+            st.rerun()
 
-            if st.button(
-                "Clear filters",
-                key="candidate_clear_filters",
-            ):
-                st.session_state.candidate_search = ""
-                st.session_state.candidate_country = "All countries"
-                st.session_state.candidate_confidence = "All confidence levels"
-                st.session_state.candidate_restriction = "Restricted"
-                st.session_state.candidate_s_range = "All S values"
-                st.rerun()
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    # --------------------------------------------------------
+    # ========================================================
     # APPLY FILTERS
-    # --------------------------------------------------------
+    # ========================================================
 
     filtered_df = assessed_df.copy()
 
@@ -1016,46 +1243,41 @@ elif st.session_state.page == "candidate_gaps":
             filtered_df["S"] >= 0
         ]
 
-    # --------------------------------------------------------
-    # TABLE HEADER
-    # --------------------------------------------------------
+    # ========================================================
+    # TABLE
+    # ========================================================
 
     st.markdown(
         """
-        <div style="
-            color:#aaa79d;
-            font-size:9px;
-            letter-spacing:0.1em;
-            text-transform:uppercase;
-            margin:8px 0 9px 0;
-        ">
+        <div class="table-caption">
             Protected areas · sorted by candidate gap
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Sort by S
-    table_df = filtered_df.sort_values(
-        "S",
-        ascending=True,
-    ).copy()
-
-    # --------------------------------------------------------
-    # RANKING TABLE
-    # --------------------------------------------------------
+    table_df = (
+        filtered_df
+        .sort_values(
+            "S",
+            ascending=True,
+        )
+        .copy()
+    )
 
     table_html = """
     <div class="ranking-header">
+
         <div>Protected area ↕</div>
         <div>Country ↕</div>
         <div>S / candidate gap ↑</div>
         <div>Abs. gap (hrs) ↕</div>
         <div>Confidence ↕</div>
+        <div>Fishing rules</div>
+
     </div>
     """
 
-    # Show the first 10 rows for the initial view.
     for _, row in table_df.head(10).iterrows():
 
         name = str(
@@ -1065,7 +1287,7 @@ elif st.session_state.page == "candidate_gaps":
             )
         )
 
-        iso3 = str(
+        country = str(
             row.get(
                 "iso3",
                 "—",
@@ -1091,46 +1313,59 @@ elif st.session_state.page == "candidate_gaps":
             )
         ).strip()
 
-        confidence_lower = confidence.lower()
+        if confidence.lower() == "high":
+            confidence_class = (
+                "confidence-high"
+            )
 
-        if confidence_lower == "high":
-            confidence_class = "confidence-high"
-        elif confidence_lower == "medium":
-            confidence_class = "confidence-medium"
-        elif confidence_lower == "low":
-            confidence_class = "confidence-low"
+        elif confidence.lower() == "medium":
+            confidence_class = (
+                "confidence-medium"
+            )
+
+        elif confidence.lower() == "low":
+            confidence_class = (
+                "confidence-low"
+            )
+
         else:
-            confidence_class = "confidence-medium"
+            confidence_class = (
+                "confidence-medium"
+            )
 
         if s_value < 0:
+
             s_color = "#a63d32"
             fill_color = "#a63d32"
-            bar_width = min(
-                58,
-                max(
-                    3,
-                    abs(s_value) * 58,
-                ),
-            )
+
         else:
+
             s_color = "#377457"
             fill_color = "#377457"
-            bar_width = min(
-                58,
-                max(
-                    3,
-                    abs(s_value) * 58,
-                ),
-            )
+
+        bar_width = min(
+            58,
+            max(
+                3,
+                abs(s_value) * 58,
+            ),
+        )
 
         if pd.notna(gap):
-            gap_text = f"+{gap:,.0f} hrs"
+
+            gap_text = (
+                f"+{gap:,.0f} hrs"
+            )
+
         else:
+
             gap_text = "—"
 
-        # Fishing rules are not present in the ranking parquet.
-        # We do not invent a rule.
-        rules_text = "Protection data"
+        # The current ranking parquet does not contain
+        # a fishing-rules field. We deliberately do not
+        # invent a restriction.
+
+        rule_text = "—"
 
         table_html += f"""
         <div class="ranking-row">
@@ -1140,7 +1375,7 @@ elif st.session_state.page == "candidate_gaps":
             </div>
 
             <div class="ranking-country">
-                {iso3}
+                {country}
             </div>
 
             <div class="ranking-s">
@@ -1153,6 +1388,7 @@ elif st.session_state.page == "candidate_gaps":
                 </span>
 
                 <span class="ranking-s-bar">
+
                     <span
                         class="ranking-s-fill"
                         style="
@@ -1160,6 +1396,7 @@ elif st.session_state.page == "candidate_gaps":
                             background:{fill_color};
                         "
                     ></span>
+
                 </span>
 
             </div>
@@ -1169,9 +1406,22 @@ elif st.session_state.page == "candidate_gaps":
             </div>
 
             <div>
-                <span class="confidence-tag {confidence_class}">
+
+                <span
+                    class="confidence-tag
+                    {confidence_class}"
+                >
                     {confidence.capitalize()}
                 </span>
+
+            </div>
+
+            <div>
+
+                <span class="rule-tag">
+                    {rule_text}
+                </span>
+
             </div>
 
         </div>
@@ -1191,6 +1441,8 @@ elif st.session_state.page == "candidate_gaps":
         """
 
     st.markdown(
-        table_html,
+        textwrap.dedent(
+            table_html
+        ),
         unsafe_allow_html=True,
     )
