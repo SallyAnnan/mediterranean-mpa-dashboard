@@ -1084,7 +1084,7 @@ elif st.session_state.page == "candidate_gaps":
         )
 
         with nav_not:
-        if st.button(
+          if st.button(
             "Not assessed",
             key="candidate_not_assessed_nav",
             type="tertiary",
