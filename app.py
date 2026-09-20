@@ -1180,20 +1180,15 @@ elif st.session_state.page == "candidate_gaps":
             return "#4f8568"
         return "#28664b"
 
-    selected_id = st.session_state.selected_wdpa
-
-    xs, ys, hover, colors, sizes, ring_w = [], [], [], [], [], []
+    xs, ys, hover, colors = [], [], [], []
 
     for i, (_, r) in enumerate(distribution_df.iterrows()):
         s_val = float(r["S"])
-        is_sel = int(r["wdpa_id"]) == selected_id
 
         xs.append(s_val)
         ys.append(100 - dot_heights[i % len(dot_heights)])
         hover.append(f'{r["mpa_name"]} · S {s_val:+.2f}')
         colors.append(dot_color_for(s_val))
-        sizes.append(14 if is_sel else 10)
-        ring_w.append(2 if is_sel else 0)
 
     fig = go.Figure()
 
@@ -1233,13 +1228,12 @@ elif st.session_state.page == "candidate_gaps":
             mode="markers",
             text=hover,
             hovertemplate="%{text}<extra></extra>",
-            marker=dict(
-                size=sizes,
-                color=colors,
-                line=dict(width=ring_w, color="#262522"),
-            ),
-            selected=dict(marker=dict(opacity=1)),
-            unselected=dict(marker=dict(opacity=1)),
+            marker=dict(size=10, color=colors),
+            # Highlighting is done by Plotly itself (NOT by rebuilding the
+            # figure): if the figure changes on every click, Streamlit
+            # treats it as a new widget, drops the selection and loops.
+            selected=dict(marker=dict(opacity=1, size=15)),
+            unselected=dict(marker=dict(opacity=0.4)),
             hoverlabel=dict(
                 bgcolor="#262522",
                 bordercolor="#262522",
@@ -1283,7 +1277,6 @@ elif st.session_state.page == "candidate_gaps":
     if picked != st.session_state.last_chart_pick:
         st.session_state.last_chart_pick = picked
         st.session_state.selected_wdpa = picked
-        st.rerun()
 
     # ========================================================
     # FILTER BAR
