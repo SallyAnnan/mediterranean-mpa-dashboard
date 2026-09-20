@@ -369,6 +369,12 @@ elif st.session_state.page == "candidate_gaps":
         # New chart key => Plotly forgets its old selection
         st.session_state.chart_version += 1
 
+    def select_row(wid):
+        st.session_state.selected_wdpa = int(wid)
+        st.session_state.last_chart_pick = None
+        # clear any dot highlight left in the Plotly chart
+        st.session_state.chart_version += 1
+
     COUNTRY_NAMES = {
         "ALB": "Albania", "CYP": "Cyprus", "DZA": "Algeria",
         "EGY": "Egypt", "ESP": "Spain", "FRA": "France",
@@ -992,6 +998,43 @@ elif st.session_state.page == "candidate_gaps":
         margin-top: 8px;
     }
 
+    /* ---------- clickable rows ---------- */
+
+    .st-key-table_wrap {
+        overflow-x: auto;
+        gap: 0 !important;
+    }
+
+    .st-key-table_wrap > * { min-width: 640px; }
+
+    div[class*="st-key-tablerow_"] {
+        position: relative;
+        gap: 0 !important;
+    }
+
+    /* invisible button stretched over the whole row */
+    div[class*="st-key-rowbtn_"] {
+        position: absolute !important;
+        top: 0; left: 0;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    div[class*="st-key-rowbtn_"] button {
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0;
+        cursor: pointer;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .ranking-row.alt { background: #f3f2ee; }
+
+    div[class*="st-key-tablerow_"]:hover .ranking-row:not(.selected) {
+        background: #eceae4;
+    }
+
     </style>
     """
 
@@ -1593,9 +1636,9 @@ elif st.session_state.page == "candidate_gaps":
 
     table_df = filtered_df.sort_values("S", ascending=True).copy()
 
-    rows_html = ""
+    row_items = []   # (wdpa_id, html)
 
-    for _, row in table_df.head(10).iterrows():
+    for idx, (_, row) in enumerate(table_df.head(10).iterrows()):
 
         name = html_lib.escape(str(row.get("mpa_name", "Unnamed MPA")))
         country = html_lib.escape(str(row.get("country", "—")))
@@ -1616,13 +1659,19 @@ elif st.session_state.page == "candidate_gaps":
         fill_w = min(half, abs(s_value) * half)
         fill_left = half - fill_w if s_value < 0 else half
 
+        wid = int(row["wdpa_id"])
         is_selected = (
             selected_row is not None
-            and int(row["wdpa_id"]) == int(selected_row["wdpa_id"])
+            and wid == int(selected_row["wdpa_id"])
         )
-        row_class = "ranking-row selected" if is_selected else "ranking-row"
 
-        rows_html += (
+        row_class = "ranking-row"
+        if idx % 2 == 1:
+            row_class += " alt"
+        if is_selected:
+            row_class += " selected"
+
+        row_html = (
             f'<div class="{row_class}">'
             f'<div class="ranking-name">{name}</div>'
             f'<div class="ranking-country">{country}</div>'
@@ -1641,15 +1690,9 @@ elif st.session_state.page == "candidate_gaps":
             '</div>'
         )
 
-    if len(table_df) == 0:
-        rows_html = (
-            '<div style="padding:35px;text-align:center;'
-            'color:#77756e;font-size:12px;">'
-            'No assessed protected areas match these filters.</div>'
-        )
+        row_items.append((wid, row_html))
 
-    table_html = (
-        '<div class="ranking-scroll">'
+    header_html = (
         '<div class="ranking-header">'
         '<div>Protected area ↕</div>'
         '<div>Country ↕</div>'
@@ -1658,8 +1701,6 @@ elif st.session_state.page == "candidate_gaps":
         '<div>Confidence ↕</div>'
         '<div>Fishing rules</div>'
         '</div>'
-        + rows_html
-        + '</div>'
     )
 
     with table_col:
@@ -1673,7 +1714,28 @@ elif st.session_state.page == "candidate_gaps":
             ),
             unsafe_allow_html=True,
         )
-        st.markdown(table_html, unsafe_allow_html=True)
+
+        with st.container(key="table_wrap"):
+
+            st.markdown(header_html, unsafe_allow_html=True)
+
+            for idx, (wid, row_html) in enumerate(row_items):
+                with st.container(key=f"tablerow_{idx}"):
+                    st.markdown(row_html, unsafe_allow_html=True)
+                    st.button(
+                        "Select",
+                        key=f"rowbtn_{idx}",
+                        on_click=select_row,
+                        args=(wid,),
+                    )
+
+            if len(table_df) == 0:
+                st.markdown(
+                    '<div style="padding:35px;text-align:center;'
+                    'color:#77756e;font-size:12px;">'
+                    'No assessed protected areas match these filters.</div>',
+                    unsafe_allow_html=True,
+                )
 
     if panel_col is not None:
         with panel_col:
