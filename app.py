@@ -1083,12 +1083,14 @@ elif st.session_state.page == "candidate_gaps":
             unsafe_allow_html=True,
         )
 
-    with nav_not:
-        st.button(
+        with nav_not:
+        if st.button(
             "Not assessed",
             key="candidate_not_assessed_nav",
             type="tertiary",
-        )
+        ):
+            st.session_state.page = "not_assessed"
+            st.rerun()
 
     with nav_method:
         st.button(
