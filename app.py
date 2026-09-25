@@ -8,7 +8,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 # Load dashboard data
-DATA_PATH = "data/mpa_ranking.parquet"
+DATA_PATH = "data/mpa_ranking (1).parquet"
 df = pd.read_parquet(DATA_PATH)
 
 # Page state
