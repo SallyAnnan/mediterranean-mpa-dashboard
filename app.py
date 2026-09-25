@@ -391,7 +391,7 @@ elif st.session_state.page == "candidate_gaps":
         if s < -0.30:
             return "Moderate candidate gap", "moderate"
         if s < 0:
-            return "Mild candidate gap", "mild"
+            return "Marginal candidate gap", "mild"
         return "Protection signal", "protection"
 
     SEVERITY_PALETTE = {
@@ -418,6 +418,43 @@ elif st.session_state.page == "candidate_gaps":
         if value >= 10:
             return f"{value:,.0f} hrs"
         return f"{value:,.1f} hrs"
+
+    def render_provenance_bar(source_df):
+        """
+        Shows which prediction run produced the numbers on screen, read
+        LIVE from the loaded file rather than trusted from its filename
+        (a full pipeline rerun can silently overwrite the real ranking
+        with the placeholder under the same filename — see Manuel's
+        note). Placed in the page header, not a muted footer, so it
+        cannot be missed.
+        """
+        sources = (
+            source_df["predictions_source"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+
+        is_placeholder = any(
+            s.strip().lower() == "baseline_placeholder" for s in sources
+        )
+        label = html_lib.escape(" / ".join(sources) if sources else "unknown")
+
+        if is_placeholder:
+            bar_html = (
+                '<div class="provenance-bar provenance-warn">'
+                '⚠ PLACEHOLDER DATA — these figures are not from the real '
+                f'prediction model (source: {label}). Do not use for '
+                'decisions.</div>'
+            )
+        else:
+            bar_html = (
+                '<div class="provenance-bar provenance-ok">'
+                f'DATA SOURCE · {label}</div>'
+            )
+
+        st.markdown(clean_html(bar_html), unsafe_allow_html=True)
 
     # ========================================================
     # STYLING
@@ -1035,6 +1072,31 @@ elif st.session_state.page == "candidate_gaps":
         background: #eceae4;
     }
 
+    /* ---------- provenance bar ---------- */
+
+    .provenance-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        margin-top: 12px;
+        font-family: Arial, sans-serif;
+        font-size: 10.5px;
+    }
+
+    .provenance-ok {
+        background: #f4f3ef;
+        border: 1px solid #dedbd3;
+        color: #77756e;
+    }
+
+    .provenance-warn {
+        background: #fdecea;
+        border: 1px solid #e8b4ac;
+        color: #a63d2d;
+        font-weight: 600;
+    }
+
     </style>
     """
 
@@ -1083,8 +1145,8 @@ elif st.session_state.page == "candidate_gaps":
             unsafe_allow_html=True,
         )
 
-        with nav_not:
-          if st.button(
+    with nav_not:
+        if st.button(
             "Not assessed",
             key="candidate_not_assessed_nav",
             type="tertiary",
@@ -1099,9 +1161,16 @@ elif st.session_state.page == "candidate_gaps":
             type="tertiary",
         )
 
+    render_provenance_bar(df)
+
     # ========================================================
     # INTRO
     # ========================================================
+
+    # Read straight from df rather than hardcoding, so this can never
+    # drift out of sync with whatever file is actually loaded.
+    n_assessed = int((df["assessed"] == True).sum())
+    n_not_assessed = int((df["assessed"] == False).sum())
 
     st.markdown(
         "<div class='candidate-page-spacer'></div>",
@@ -1137,9 +1206,9 @@ elif st.session_state.page == "candidate_gaps":
 
         st.markdown(
             clean_html(
-                """
+                f"""
                 <div class="candidate-count-number" style="color:#1f5f8b;">
-                    1,288
+                    {n_assessed:,}
                 </div>
                 <div class="candidate-count-label">assessed MPAs</div>
                 """
@@ -1151,9 +1220,9 @@ elif st.session_state.page == "candidate_gaps":
 
         st.markdown(
             clean_html(
-                """
+                f"""
                 <div class="candidate-count-number" style="color:#aaa79d;">
-                    117
+                    {n_not_assessed:,}
                 </div>
                 <div class="candidate-count-label">not assessed</div>
                 """
@@ -1636,6 +1705,14 @@ elif st.session_state.page == "candidate_gaps":
     else:
         table_col, panel_col = st.container(), None
 
+    # TODO(priority-column): Tiago's 5-day-old message said sorting on S
+    # alone puts tiny, barely-fished areas at the top (confirmed: still
+    # true on the current file — sub-4-km² sites dominate the top of S).
+    # He mentioned a Priority column, weighted by effort at stake, meant
+    # to replace this sort. It is not in the current mpa_ranking.parquet
+    # (checked: only `rank` and `S` exist). Once Tiago confirms which
+    # file has it, swap the line below for:
+    #   table_df = filtered_df.sort_values("Priority", ascending=True)
     table_df = filtered_df.sort_values("S", ascending=True).copy()
 
     row_items = []   # (wdpa_id, html)
@@ -1743,465 +1820,3 @@ elif st.session_state.page == "candidate_gaps":
         with panel_col:
             with st.container(key="detail_panel"):
                 render_detail(selected_row)
-# ============================================================
-# NOT ASSESSED PAGE
-# Paste this block directly AFTER the candidate_gaps block
-# (it starts with `elif`, so it continues the same if/elif chain).
-# ============================================================
-
-elif st.session_state.page == "not_assessed":
-
-    import html as html_lib
-
-    def clean_html(markup: str) -> str:
-        """One line, no indentation, no blank lines (see candidate page)."""
-        return " ".join(
-            line.strip() for line in markup.splitlines() if line.strip()
-        )
-
-    COUNTRY_NAMES = {
-        "ALB": "Albania", "CYP": "Cyprus", "DZA": "Algeria",
-        "EGY": "Egypt", "ESP": "Spain", "FRA": "France",
-        "GIB": "Gibraltar", "GRC": "Greece", "HRV": "Croatia",
-        "ISR": "Israel", "ITA": "Italy", "LBN": "Lebanon",
-        "MAR": "Morocco", "MCO": "Monaco", "MLT": "Malta",
-        "MNE": "Montenegro", "SVN": "Slovenia", "TUN": "Tunisia",
-        "TUR": "Türkiye",
-    }
-
-    def go_to(page_name):
-        st.session_state.page = page_name
-
-    # ========================================================
-    # STYLING
-    # ========================================================
-
-    NA_CSS = """
-    <style>
-
-    html, body, .stApp,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stMain"] {
-        background: #f4f3ef !important;
-    }
-
-    header[data-testid="stHeader"] { background: transparent !important; }
-
-    [data-testid="stToolbar"],
-    [data-testid="stDecoration"] { display: none !important; }
-
-    .block-container {
-        max-width: 1180px !important;
-        padding-top: 1.2rem !important;
-        padding-bottom: 4rem !important;
-    }
-
-    /* ---------- navigation (same as Candidate gaps) ---------- */
-
-    .candidate-nav-subtitle {
-        color: #aaa79d;
-        font-family: Arial, sans-serif;
-        font-size: 8px;
-        letter-spacing: 0.14em;
-        margin-top: -8px;
-        margin-left: 34px;
-        white-space: nowrap;
-    }
-
-    .candidate-active-nav {
-        color: #1f5f8b;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-        font-weight: 600;
-        text-align: center;
-        padding: 11px 8px 13px 8px;
-        border-bottom: 2px solid #1f5f8b;
-        white-space: nowrap;
-    }
-
-    div[data-testid="stButton"] > button[kind="tertiary"] {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        color: #77756e !important;
-        border-radius: 0 !important;
-        padding: 10px 8px 13px 8px !important;
-        min-height: 0 !important;
-    }
-
-    div[data-testid="stButton"] > button[kind="tertiary"] p {
-        font-family: Arial, sans-serif !important;
-        font-size: 12px !important;
-        font-weight: 400 !important;
-        color: #77756e !important;
-    }
-
-    div[data-testid="stButton"] > button[kind="tertiary"]:hover,
-    div[data-testid="stButton"] > button[kind="tertiary"]:hover p {
-        background: transparent !important;
-        color: #262522 !important;
-    }
-
-    div.st-key-na_logo div[data-testid="stButton"] > button[kind="tertiary"] {
-        position: relative;
-        padding: 0 0 0 36px !important;
-        justify-content: flex-start !important;
-    }
-
-    div.st-key-na_logo div[data-testid="stButton"] > button[kind="tertiary"] p {
-        font-family: Georgia, serif !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-        color: #262522 !important;
-    }
-
-    div.st-key-na_logo button::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 26px;
-        height: 26px;
-        background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26' fill='none' stroke='%231f5f8b' stroke-width='1.4'%3E%3Ccircle cx='13' cy='13' r='11'/%3E%3Cpath d='M5 12c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3Cpath d='M5 16c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-size: contain;
-    }
-
-    /* ---------- intro ---------- */
-
-    .na-title {
-        font-family: Georgia, serif;
-        font-size: 26px;
-        font-weight: 600;
-        line-height: 1.2;
-        color: #262522;
-        margin: 0;
-    }
-
-    .na-description {
-        color: #77756e;
-        font-family: Arial, sans-serif;
-        font-size: 13px;
-        line-height: 1.55;
-        max-width: 690px;
-        margin-top: 10px;
-    }
-
-    /* ---------- explanation box ---------- */
-
-    .na-info {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 40px;
-        background: #eeece6;
-        border: 1px solid #dedbd3;
-        padding: 24px 28px 28px 28px;
-        margin: 34px 0 40px 0;
-    }
-
-    .na-info-label {
-        color: #aaa79d;
-        font-family: Arial, sans-serif;
-        font-size: 9px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        margin-bottom: 12px;
-    }
-
-    .na-info-text {
-        color: #4f4d47;
-        font-family: Arial, sans-serif;
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-    .na-info-strong {
-        color: #262522;
-        font-weight: 600;
-    }
-
-    .na-info-muted {
-        color: #77756e;
-        margin-top: 8px;
-    }
-
-    /* ---------- table ---------- */
-
-    .na-scroll { overflow-x: auto; }
-
-    .na-header,
-    .na-row {
-        display: grid;
-        grid-template-columns: 2.2fr 1fr 4fr 1fr;
-        align-items: center;
-        column-gap: 16px;
-        padding: 0 14px;
-        box-sizing: border-box;
-        min-width: 640px;
-    }
-
-    .na-header {
-        padding-bottom: 12px;
-        border-bottom: 1px solid #cfcac0;
-        color: #77756e;
-        font-family: Arial, sans-serif;
-        font-size: 9px;
-        font-weight: 600;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-    }
-
-    .na-row {
-        min-height: 62px;
-        border-bottom: 1px solid #e4e1da;
-        background: #f7f6f2;
-    }
-
-    .na-row.alt { background: #f3f2ee; }
-
-    .na-name {
-        color: #262522;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-        font-weight: 500;
-    }
-
-    .na-country {
-        color: #77756e;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-    }
-
-    .na-reason {
-        color: #4f4d47;
-        font-family: Arial, sans-serif;
-        font-size: 11px;
-        line-height: 1.5;
-    }
-
-    .na-reason-sub {
-        color: #aaa79d;
-        margin-top: 2px;
-    }
-
-    .na-area {
-        color: #aaa79d;
-        font-family: monospace;
-        font-size: 12px;
-        text-align: right;
-    }
-
-    .na-header > div:last-child { text-align: right; }
-
-    </style>
-    """
-
-    st.markdown(clean_html(NA_CSS), unsafe_allow_html=True)
-
-    # ========================================================
-    # TOP NAVIGATION
-    # ========================================================
-
-    nav_logo, nav_candidate, nav_not, nav_method = st.columns(
-        [4.7, 1, 1, 1],
-        gap="small",
-    )
-
-    with nav_logo:
-        st.button(
-            "MPA Enforcement Intelligence",
-            key="na_logo",
-            type="tertiary",
-            on_click=go_to,
-            args=("welcome",),
-        )
-        st.markdown(
-            clean_html(
-                """
-                <div class="candidate-nav-subtitle">
-                    MEDITERRANEAN · DECISION SUPPORT
-                </div>
-                """
-            ),
-            unsafe_allow_html=True,
-        )
-
-    with nav_candidate:
-        st.button(
-            "Candidate gaps",
-            key="na_candidate_nav",
-            type="tertiary",
-            on_click=go_to,
-            args=("candidate_gaps",),
-        )
-
-    with nav_not:
-        st.markdown(
-            clean_html(
-                """
-                <div class="candidate-active-nav">Not assessed</div>
-                """
-            ),
-            unsafe_allow_html=True,
-        )
-
-    with nav_method:
-        st.button(
-            "Methodology",
-            key="na_methodology_nav",
-            type="tertiary",
-        )
-
-    # ========================================================
-    # DATA
-    # ========================================================
-
-    not_assessed_df = df[df["assessed"] == False].copy()
-
-    not_assessed_df["country"] = (
-        not_assessed_df["iso3"]
-        .map(COUNTRY_NAMES)
-        .fillna(not_assessed_df["iso3"])
-    )
-
-    # NOTE: S, observed hours and rank exist in the file for these rows
-    # but are deliberately NOT displayed: an unassessed MPA must never
-    # look like "no fishing" or "good protection".
-
-    not_assessed_df = not_assessed_df.sort_values(
-        ["country", "mpa_name"]
-    ).reset_index(drop=True)
-
-    n_not_assessed = len(not_assessed_df)
-
-    # ========================================================
-    # INTRO
-    # ========================================================
-
-    st.markdown(
-        clean_html(
-            f"""
-            <div style="height:4px;"></div>
-            <div class="na-title">{n_not_assessed:,} MPAs not assessed</div>
-            <div class="na-description">
-                Insufficient Automatic Identification System (AIS) coverage
-                means the available vessel tracking data cannot support a
-                reliable assessment for these protected areas.
-            </div>
-            <div style="border-bottom:1px solid #deddd7;
-                        margin-top:26px;"></div>
-            """
-        ),
-        unsafe_allow_html=True,
-    )
-
-    # ========================================================
-    # EXPLANATION BOX
-    # ========================================================
-
-    st.markdown(
-        clean_html(
-            """
-            <div class="na-info">
-
-                <div>
-                    <div class="na-info-label">Why not assessed?</div>
-                    <div class="na-info-text">
-                        AIS coverage must meet minimum density thresholds to
-                        produce a reliable estimate. Where coverage is below
-                        threshold, the model cannot generate a credible
-                        counterfactual.
-                    </div>
-                </div>
-
-                <div>
-                    <div class="na-info-label">Critical distinction</div>
-                    <div class="na-info-text">
-                        <div class="na-info-strong">
-                            Absence of recorded AIS activity ≠ absence of
-                            fishing.
-                        </div>
-                        <div class="na-info-muted">
-                            Low AIS density can reflect limited transponder
-                            use or coverage, not a genuine absence of effort.
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="na-info-label">What this means</div>
-                    <div class="na-info-text">
-                        These MPAs are excluded from the ranking. This is not
-                        a positive indicator. It reflects a monitoring gap,
-                        not a protection outcome.
-                    </div>
-                </div>
-
-            </div>
-            """
-        ),
-        unsafe_allow_html=True,
-    )
-
-    # ========================================================
-    # TABLE
-    # ========================================================
-
-    def fmt_area(value):
-        if pd.isna(value):
-            return "—"
-        value = float(value)
-        return f"{value:,.2f}" if value < 1 else f"{value:,.1f}"
-
-    rows_html = ""
-
-    for idx, row in not_assessed_df.iterrows():
-
-        name = html_lib.escape(str(row["mpa_name"]))
-        country = html_lib.escape(str(row["country"]))
-
-        reason = str(row.get("not_assessed_reason", "") or "").strip()
-        reason = html_lib.escape(
-            reason[:1].upper() + reason[1:]
-            if reason
-            else "Insufficient AIS coverage to assess"
-        )
-
-        sub_bits = []
-        if pd.notna(row.get("n_cells")):
-            n_cells = int(row["n_cells"])
-            sub_bits.append(f"{n_cells:,} grid cell{'s' if n_cells != 1 else ''}")
-        if pd.notna(row.get("n_cell_months")):
-            sub_bits.append(
-                f"{int(row['n_cell_months']):,} cell-months in the analysis window"
-            )
-        sub_html = (
-            f'<div class="na-reason-sub">{" · ".join(sub_bits)}</div>'
-            if sub_bits
-            else ""
-        )
-
-        alt = " alt" if idx % 2 == 1 else ""
-
-        rows_html += (
-            f'<div class="na-row{alt}">'
-            f'<div class="na-name">{name}</div>'
-            f'<div class="na-country">{country}</div>'
-            f'<div class="na-reason">{reason}{sub_html}</div>'
-            f'<div class="na-area">{fmt_area(row.get("area_km2"))}</div>'
-            '</div>'
-        )
-
-    st.markdown(
-        '<div class="na-scroll">'
-        '<div class="na-header">'
-        '<div>Protected area</div>'
-        '<div>Country</div>'
-        '<div>Reason not assessed</div>'
-        '<div>Area (km²)</div>'
-        '</div>'
-        + rows_html
-        + '</div>',
-        unsafe_allow_html=True,
-    )
