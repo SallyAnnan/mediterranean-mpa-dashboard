@@ -1796,7 +1796,7 @@ elif st.session_state.page == "candidate_gaps":
 # (it starts with `elif`, so it continues the same if/elif chain).
 # ============================================================
 
-     elif st.session_state.page == "not_assessed":
+  elif st.session_state.page == "not_assessed":
 
     import html as html_lib
 
