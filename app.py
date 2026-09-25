@@ -351,7 +351,6 @@ elif st.session_state.page == "candidate_gaps":
         st.session_state.candidate_search = ""
         st.session_state.candidate_country = "All countries"
         st.session_state.candidate_confidence = "All confidence levels"
-        st.session_state.candidate_restriction = "Fishing rules: any"
         st.session_state.candidate_s_range = "All S values"
 
 
@@ -787,7 +786,7 @@ elif st.session_state.page == "candidate_gaps":
     .ranking-header,
     .ranking-row {
         display: grid;
-        grid-template-columns: 2.15fr 0.72fr 1.35fr 1.15fr 1.05fr 1.25fr;
+        grid-template-columns: 2.3fr 0.9fr 1.5fr 1.3fr 1.2fr;
         align-items: center;
         padding: 0 14px;
         box-sizing: border-box;
@@ -880,16 +879,6 @@ elif st.session_state.page == "candidate_gaps":
     .confidence-high   { background: #dfeee5; color: #387256; }
     .confidence-medium { background: #f3ecd9; color: #896b28; }
     .confidence-low    { background: #eee5e3; color: #87594e; }
-
-    .rule-tag {
-        display: inline-block;
-        background: #dfebf4;
-        color: #35617e;
-        padding: 5px 8px;
-        border-radius: 4px;
-        font-family: Arial, sans-serif;
-        font-size: 9px;
-    }
 
     /* ---------- selected row / scroll ---------- */
 
@@ -1398,8 +1387,8 @@ elif st.session_state.page == "candidate_gaps":
 
     with st.container(key="filter_shell"):
 
-        f1, f2, f3, f4, f5, f6 = st.columns(
-            [2.65, 1.0, 1.28, 1.08, 1.12, 0.82],
+        f1, f2, f3, f4, f5 = st.columns(
+            [2.65, 1.15, 1.4, 1.3, 0.9],
             gap="small",
         )
 
@@ -1431,16 +1420,6 @@ elif st.session_state.page == "candidate_gaps":
             )
 
         with f4:
-            # No fishing-rules data yet: placeholder, disabled.
-            st.selectbox(
-                "Fishing rules",
-                ["Fishing rules: any"],
-                label_visibility="collapsed",
-                key="candidate_restriction",
-                disabled=True,
-            )
-
-        with f5:
             selected_s = st.selectbox(
                 "S range",
                 [
@@ -1452,7 +1431,7 @@ elif st.session_state.page == "candidate_gaps":
                 key="candidate_s_range",
             )
 
-        with f6:
+        with f5:
             st.button(
                 "Clear filters",
                 key="candidate_clear_filters",
@@ -1666,13 +1645,6 @@ elif st.session_state.page == "candidate_gaps":
 
                 <div class="detail-hr"></div>
 
-                <div class="detail-row">
-                    <span class="detail-section-label">Fishing rules</span>
-                </div>
-                <div class="detail-note">Not available yet.</div>
-
-                <div class="detail-hr"></div>
-
                 <div class="detail-section-label">Context</div>
                 <div class="detail-text">{context_html}</div>
 
@@ -1765,7 +1737,6 @@ elif st.session_state.page == "candidate_gaps":
             f'{gap_text}</div>'
             f'<div><span class="confidence-tag {confidence_class}">'
             f'{html_lib.escape(confidence.capitalize())}</span></div>'
-            '<div></div>'   # fishing rules: intentionally blank for now
             '</div>'
         )
 
@@ -1778,7 +1749,6 @@ elif st.session_state.page == "candidate_gaps":
         '<div>S / candidate gap ↑</div>'
         '<div>Abs. gap (hrs) ↕</div>'
         '<div>Confidence ↕</div>'
-        '<div>Fishing rules</div>'
         '</div>'
     )
 
