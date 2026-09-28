@@ -1285,11 +1285,12 @@ elif st.session_state.page == "candidate_gaps":
             st.rerun()
 
     with nav_method:
-        st.button(
-            "Methodology",
-            key="candidate_methodology_nav",
-            type="tertiary",
-        )
+    st.button(
+        "Methodology",
+        key="candidate_methodology_nav",
+        type="tertiary",
+        on_click=lambda: st.session_state.update(page="methodology"),
+    )
 
     render_provenance_bar(df)
 
@@ -2383,11 +2384,13 @@ elif st.session_state.page == "not_assessed":
         )
 
     with nav_method:
-        st.button(
-            "Methodology",
-            key="na_methodology_nav",
-            type="tertiary",
-        )
+    st.button(
+        "Methodology",
+        key="na_methodology_nav",
+        type="tertiary",
+        on_click=go_to,
+        args=("methodology",),
+    )
 
     render_provenance_bar(df)
 
