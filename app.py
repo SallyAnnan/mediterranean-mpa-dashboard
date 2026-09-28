@@ -2543,3 +2543,809 @@ elif st.session_state.page == "not_assessed":
         + '</div>',
         unsafe_allow_html=True,
     )
+# ============================================================
+# METHODOLOGY PAGE
+# Paste this block directly AFTER the not_assessed block
+# (it starts with `elif`, so it continues the same if/elif chain).
+#
+# All numbers that describe the data (counts, window, confidence
+# split, source) are computed from `df`, so they can never drift
+# out of sync with the file that is loaded.
+# ============================================================
+
+elif st.session_state.page == "methodology":
+
+    import html as html_lib
+
+    def clean_html(markup: str) -> str:
+        """One line, no indentation, no blank lines (see candidate page)."""
+        return " ".join(
+            line.strip() for line in markup.splitlines() if line.strip()
+        )
+
+    def go_to(page_name):
+        st.session_state.page = page_name
+
+    def render_provenance_bar(source_df):
+        """
+        Same logic as the other pages: shows which prediction run produced
+        the numbers, read LIVE from the loaded file, not from its filename.
+        """
+        sources = (
+            source_df["predictions_source"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+        is_placeholder = any(
+            s.strip().lower() == "baseline_placeholder" for s in sources
+        )
+        label = html_lib.escape(" / ".join(sources) if sources else "unknown")
+
+        if is_placeholder:
+            bar_html = (
+                '<div class="provenance-bar provenance-warn">'
+                '⚠ PLACEHOLDER DATA — these figures are not from the real '
+                f'prediction model (source: {label}). Do not use for '
+                'decisions.</div>'
+            )
+        else:
+            bar_html = (
+                '<div class="provenance-bar provenance-ok">'
+                f'DATA SOURCE · {label}</div>'
+            )
+        st.markdown(clean_html(bar_html), unsafe_allow_html=True)
+
+    # ========================================================
+    # STYLING
+    # ========================================================
+
+    METH_CSS = """
+    <style>
+
+    html, body, .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"] {
+        background: #f4f3ef !important;
+    }
+
+    header[data-testid="stHeader"] { background: transparent !important; }
+
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"] { display: none !important; }
+
+    .block-container {
+        max-width: 1180px !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 4rem !important;
+    }
+
+    /* ---------- navigation (same as the other pages) ---------- */
+
+    .candidate-nav-subtitle {
+        color: #aaa79d;
+        font-family: Arial, sans-serif;
+        font-size: 8px;
+        letter-spacing: 0.14em;
+        margin-top: -8px;
+        margin-left: 34px;
+        white-space: nowrap;
+    }
+
+    .candidate-active-nav {
+        color: #1f5f8b;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+        padding: 11px 8px 13px 8px;
+        border-bottom: 2px solid #1f5f8b;
+        white-space: nowrap;
+    }
+
+    div[data-testid="stButton"] > button[kind="tertiary"] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #77756e !important;
+        border-radius: 0 !important;
+        padding: 10px 8px 13px 8px !important;
+        min-height: 0 !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="tertiary"] p {
+        font-family: Arial, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        color: #77756e !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="tertiary"]:hover,
+    div[data-testid="stButton"] > button[kind="tertiary"]:hover p {
+        background: transparent !important;
+        color: #262522 !important;
+    }
+
+    div.st-key-meth_logo div[data-testid="stButton"] > button[kind="tertiary"] {
+        position: relative;
+        padding: 0 0 0 36px !important;
+        justify-content: flex-start !important;
+    }
+
+    div.st-key-meth_logo div[data-testid="stButton"] > button[kind="tertiary"] p {
+        font-family: Georgia, serif !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #262522 !important;
+    }
+
+    div.st-key-meth_logo button::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 26px;
+        height: 26px;
+        background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26' fill='none' stroke='%231f5f8b' stroke-width='1.4'%3E%3Ccircle cx='13' cy='13' r='11'/%3E%3Cpath d='M5 12c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3Cpath d='M5 16c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-size: contain;
+    }
+
+    /* ---------- provenance bar ---------- */
+
+    .provenance-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        margin-top: 12px;
+        font-family: Arial, sans-serif;
+        font-size: 10.5px;
+    }
+
+    .provenance-ok {
+        background: #f4f3ef;
+        border: 1px solid #dedbd3;
+        color: #77756e;
+    }
+
+    .provenance-warn {
+        background: #fdecea;
+        border: 1px solid #e8b4ac;
+        color: #a63d2d;
+        font-weight: 600;
+    }
+
+    /* ---------- intro ---------- */
+
+    .meth-title {
+        font-family: Georgia, serif;
+        font-size: 26px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: #262522;
+        margin: 0;
+    }
+
+    .meth-lead {
+        color: #77756e;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        line-height: 1.55;
+        max-width: 690px;
+        margin-top: 10px;
+    }
+
+    /* ---------- sections ---------- */
+
+    .meth-section {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        column-gap: 56px;
+        padding: 30px 0 22px 0;
+        border-top: 1px solid #deddd7;
+    }
+
+    .meth-num {
+        color: #aaa79d;
+        font-family: monospace;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+    }
+
+    .meth-side-title {
+        font-family: Georgia, serif;
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #262522;
+        margin-top: 6px;
+    }
+
+    .meth-body {
+        max-width: 720px;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        line-height: 1.7;
+        color: #4f4d47;
+    }
+
+    .meth-body p { margin: 0 0 12px 0; }
+
+    .meth-body strong { color: #262522; }
+
+    .meth-list {
+        margin: 0 0 14px 0;
+        padding-left: 18px;
+    }
+
+    .meth-list li { margin-bottom: 6px; }
+
+    .meth-code {
+        font-family: monospace;
+        font-size: 12px;
+        color: #262522;
+    }
+
+    .meth-formula {
+        background: #eeece6;
+        border: 1px solid #dedbd3;
+        padding: 16px 20px;
+        margin: 4px 0 16px 0;
+        font-family: monospace;
+        font-size: 15px;
+        color: #262522;
+    }
+
+    .meth-formula small {
+        display: block;
+        margin-top: 8px;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        color: #77756e;
+    }
+
+    .meth-callout {
+        border-left: 3px solid #c47a2c;
+        background: #fbf1e4;
+        padding: 12px 16px;
+        margin: 4px 0 14px 0;
+        color: #5d4630;
+        font-size: 12.5px;
+        line-height: 1.6;
+    }
+
+    /* rows used for the S interpretation and the worked example */
+
+    .meth-grid {
+        border-top: 1px solid #e4e1da;
+        margin: 4px 0 16px 0;
+    }
+
+    .meth-grid-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        column-gap: 20px;
+        padding: 10px 0;
+        border-bottom: 1px solid #e4e1da;
+        font-size: 12.5px;
+        line-height: 1.6;
+    }
+
+    .meth-grid-key {
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .meth-grid-row.example {
+        grid-template-columns: 90px repeat(4, 1fr);
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    .meth-grid-row.example.head {
+        font-family: Arial, sans-serif;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #77756e;
+    }
+
+    /* stat tiles in the data section */
+
+    .meth-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 4px 0 16px 0;
+    }
+
+    .meth-stat {
+        background: #eeece6;
+        border: 1px solid #dedbd3;
+        padding: 12px 14px;
+    }
+
+    .meth-stat-num {
+        font-family: Georgia, serif;
+        font-size: 20px;
+        color: #1f5f8b;
+    }
+
+    .meth-stat-label {
+        margin-top: 4px;
+        font-size: 10px;
+        color: #77756e;
+    }
+
+    @media (max-width: 800px) {
+        .meth-section { grid-template-columns: 1fr; row-gap: 14px; }
+        .meth-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    </style>
+    """
+
+    st.markdown(clean_html(METH_CSS), unsafe_allow_html=True)
+
+    # ========================================================
+    # TOP NAVIGATION
+    # ========================================================
+
+    nav_logo, nav_candidate, nav_not, nav_method = st.columns(
+        [4.7, 1, 1, 1],
+        gap="small",
+    )
+
+    with nav_logo:
+        st.button(
+            "MPA Enforcement Intelligence",
+            key="meth_logo",
+            type="tertiary",
+            on_click=go_to,
+            args=("welcome",),
+        )
+        st.markdown(
+            clean_html(
+                """
+                <div class="candidate-nav-subtitle">
+                    MEDITERRANEAN · DECISION SUPPORT
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with nav_candidate:
+        st.button(
+            "Candidate gaps",
+            key="meth_candidate_nav",
+            type="tertiary",
+            on_click=go_to,
+            args=("candidate_gaps",),
+        )
+
+    with nav_not:
+        st.button(
+            "Not assessed",
+            key="meth_not_assessed_nav",
+            type="tertiary",
+            on_click=go_to,
+            args=("not_assessed",),
+        )
+
+    with nav_method:
+        st.markdown(
+            clean_html(
+                """
+                <div class="candidate-active-nav">Methodology</div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+    render_provenance_bar(df)
+
+    # ========================================================
+    # NUMBERS FROM THE DATA (never typed in by hand)
+    # ========================================================
+
+    m_assessed = df[df["assessed"] == True]
+    m_not = df[df["assessed"] == False]
+
+    n_total = len(df)
+    n_assessed = len(m_assessed)
+    n_not = len(m_not)
+
+    n_countries_all = int(df["iso3"].nunique())
+    n_countries_assessed = int(m_assessed["iso3"].nunique())
+
+    try:
+        year_first = pd.Timestamp(m_assessed["first_month"].min()).year
+        year_last = pd.Timestamp(m_assessed["last_month"].max()).year
+        window = f"{year_first}–{year_last}"
+    except Exception:
+        window = "the analysis window"
+
+    conf_counts = (
+        m_assessed["confidence"].astype(str).str.strip().str.lower()
+        .value_counts()
+    )
+    n_high = int(conf_counts.get("high", 0))
+    n_medium = int(conf_counts.get("medium", 0))
+    n_low = int(conf_counts.get("low", 0))
+
+    s_numeric = pd.to_numeric(m_assessed["S"], errors="coerce")
+    neg_mask = s_numeric < 0
+    n_negative = int(neg_mask.sum())
+
+    if "resolvable" in m_assessed.columns:
+        n_subcell = int((m_assessed["resolvable"] == False).sum())
+        neg_subcell_share = (
+            float((m_assessed.loc[neg_mask, "resolvable"] == False).mean())
+            if n_negative
+            else 0.0
+        )
+    else:
+        n_subcell = 0
+        neg_subcell_share = 0.0
+
+    sources = (
+        df["predictions_source"].dropna().astype(str).unique().tolist()
+    )
+    source_label = html_lib.escape(" / ".join(sources) if sources else "unknown")
+
+    # ========================================================
+    # INTRO
+    # ========================================================
+
+    st.markdown(
+        clean_html(
+            """
+            <div style="height:4px;"></div>
+            <div class="meth-title">Methodology &amp; about</div>
+            <div class="meth-lead">
+                How the numbers in this dashboard are produced, what they can
+                and cannot tell you, and where they come from. This page
+                describes the method. It does not add to it.
+            </div>
+            <div style="height:30px;"></div>
+            """
+        ),
+        unsafe_allow_html=True,
+    )
+
+    def section(num, title, body_html):
+        st.markdown(
+            clean_html(
+                f"""
+                <div class="meth-section">
+                    <div>
+                        <div class="meth-num">{num}</div>
+                        <div class="meth-side-title">{title}</div>
+                    </div>
+                    <div class="meth-body">{body_html}</div>
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+    # ========================================================
+    # 01  WHAT THIS TOOL DOES
+    # ========================================================
+
+    section(
+        "01",
+        "What this tool does",
+        """
+        <p>Marine Protected Areas (MPAs) are designated to protect marine
+        ecosystems, but a designation does not by itself show that fishing
+        pressure has fallen. The useful question is not whether there is
+        fishing inside an MPA, since some fishing may be legitimate under its
+        rules. It is this: <strong>how much industrial fishing would we
+        expect here if the area were not protected, and how does that compare
+        with what was actually observed?</strong></p>
+        <p>The dashboard ranks MPAs by the difference between the two, so that
+        people who manage, monitor or enforce them can decide where to look
+        first. It is decision support. It does not declare any MPA illegally
+        fished, poorly enforced or ineffective.</p>
+        <div class="meth-callout"><strong>A candidate gap is a signal for
+        investigation, not proof of illegal fishing or failed
+        enforcement.</strong></div>
+        """,
+    )
+
+    # ========================================================
+    # 02  COUNTERFACTUAL MODELLING
+    # ========================================================
+
+    section(
+        "02",
+        "Counterfactual modelling",
+        f"""
+        <p>We cannot observe how much fishing would have happened in a
+        protected area had it never been protected. Instead, a machine
+        learning model learns how fishing effort relates to the
+        characteristics of unprotected water, then estimates the effort
+        expected at protected locations. That estimate is the
+        counterfactual.</p>
+        <ul class="meth-list">
+        <li><strong>Model.</strong> Gradient boosting with a Poisson loss,
+        because the quantity predicted is fishing effort in hours.</li>
+        <li><strong>Comparison water.</strong> Trained on unprotected water
+        only, and restricted to the range of conditions that protected areas
+        also cover, so that like is compared with like.</li>
+        <li><strong>Predictions.</strong> Cross-fitted, and scaled by a
+        calibration factor of about 1.224.</li>
+        <li><strong>Inputs.</strong> Physical, environmental, geographic and
+        neighbourhood features. Raw latitude and longitude are not used.
+        Distance to the nearest MPA is not used either, because it behaves
+        differently in the unprotected training data than at protected
+        locations.</li>
+        <li><strong>Evaluation.</strong> Blocked by space and time instead of
+        a random split, which reduces leakage and gives a more realistic
+        picture of how the model generalises.</li>
+        </ul>
+        <p><strong>Expected effort (P)</strong> is the model's estimate,
+        summed over the cells and months of each MPA.
+        <strong>Observed effort (O)</strong> is industrial fishing activity
+        inferred from AIS vessel tracking for the same cells and months.
+        Both are shown as <strong>total fishing hours over {window}</strong>,
+        not per year.</p>
+        <p>This dashboard does not train or run the model. It reads the
+        MPA-level ranking that the modelling pipeline produced.</p>
+        """,
+    )
+
+    # ========================================================
+    # 03  THE INDEX S
+    # ========================================================
+
+    section(
+        "03",
+        "The candidate gap index, S",
+        f"""
+        <div class="meth-formula">S = (P − O) / (P + O)
+        <small>P = expected (counterfactual) effort &nbsp;·&nbsp;
+        O = observed effort</small></div>
+        <p>S runs from −1 to +1. A value of −1 means fishing occurred where
+        almost none was expected. A value of +1 means the expected effort is
+        entirely absent.</p>
+        <div class="meth-grid">
+        <div class="meth-grid-row">
+        <div class="meth-grid-key" style="color:#a63d32;">S below 0</div>
+        <div>More fishing observed than expected. These are the candidate
+        gaps.</div></div>
+        <div class="meth-grid-row">
+        <div class="meth-grid-key" style="color:#77756e;">S near 0</div>
+        <div>Observed effort is about what the counterfactual expected.</div>
+        </div>
+        <div class="meth-grid-row">
+        <div class="meth-grid-key" style="color:#377457;">S above 0</div>
+        <div>Less fishing observed than expected. This is a protection
+        signal, but it does not prove that protection caused the
+        reduction.</div></div>
+        </div>
+        <p>An earlier version of the metric, 1 − O/P, had no lower limit and
+        could produce absurd values, so it was replaced by S.</p>
+        <p>The labels shown in the detail panel (severe, moderate and
+        marginal candidate gap, and protection signal) are a reading aid set
+        by this dashboard at S = −0.65, −0.30 and 0. They are not part of the
+        model.</p>
+        <p>In the current file S is below 0 for <strong>{n_negative:,} of
+        {n_assessed:,}</strong> assessed MPAs. About
+        <strong>{neg_subcell_share:.0%}</strong> of those are smaller than
+        one grid cell, which is why S alone is a poor way to order the
+        table.</p>
+        """,
+    )
+
+    # ========================================================
+    # 04  WHY S IS NOT ENOUGH
+    # ========================================================
+
+    section(
+        "04",
+        "Why S is not enough on its own",
+        """
+        <p>S is a proportion, so it says nothing about how much fishing is
+        involved. Two MPAs can have the same S with very different amounts of
+        effort behind it:</p>
+        <div class="meth-grid">
+        <div class="meth-grid-row example head">
+        <div>MPA</div><div>Expected</div><div>Observed</div><div>S</div>
+        <div>Absolute gap</div></div>
+        <div class="meth-grid-row example">
+        <div>A</div><div>1 hr</div><div>10 hrs</div><div>−0.82</div>
+        <div>+9 hrs</div></div>
+        <div class="meth-grid-row example">
+        <div>B</div><div>1,000 hrs</div><div>10,000 hrs</div>
+        <div>−0.82</div><div>+9,000 hrs</div></div>
+        </div>
+        <p>That is why the <strong>absolute gap in fishing hours</strong> is
+        always shown next to S. In the tables it is observed minus expected:
+        a plus sign means more fishing than expected, a minus sign means
+        less.</p>
+        <p>Neither number travels well on its own. Absolute hours are not
+        comparable between MPAs of very different sizes, and S is not
+        comparable between MPAs whose grid cells overlap them to very
+        different degrees. Confidence exists to say that out loud.</p>
+        """,
+    )
+
+    # ========================================================
+    # 05  HOW THE TABLE IS RANKED
+    # ========================================================
+
+    section(
+        "05",
+        "How the table is ranked",
+        """
+        <div class="meth-formula">priority = 0 &nbsp; if S ≥ 0<br>
+        priority = min(1, −S) × log10(1 + expected hours) &nbsp; if S below 0
+        <small>expected hours = expected effort inside the MPA over the
+        analysis window</small></div>
+        <p>Ranking on S alone puts tiny, thinly fished areas at the top: an
+        area at S = −0.99 that expected only a few hours of fishing is mostly
+        noise. Priority multiplies the size of the shortfall by the logarithm
+        of the effort at stake, so a sizeable gap in a heavily fished area
+        outranks a near-perfect score on almost nothing.</p>
+        <p>Areas with S of 0 or above score 0. Ties are ordered by S, most
+        negative first. Priority is worked out by the dashboard from the
+        ranking file, for assessed MPAs only. S and the absolute gap keep
+        their own columns. The file's own rank column orders by S alone and
+        is not used.</p>
+        """,
+    )
+
+    # ========================================================
+    # 06  CONFIDENCE
+    # ========================================================
+
+    section(
+        "06",
+        "Confidence",
+        f"""
+        <p>Confidence says how far the S of a single MPA can be trusted. It
+        is the <strong>weaker</strong> of two measures:</p>
+        <ul class="meth-list">
+        <li><strong>Cell overlap.</strong> On average, how much of each grid
+        cell the MPA fills. The data sit on a 0.1° grid, so an MPA boundary
+        cuts through cells and part of each cell's fishing happens outside
+        the MPA. The smaller the share, the noisier S becomes.</li>
+        <li><strong>AIS coverage.</strong> The share of the MPA's cell-months
+        in which AIS recorded any vessel.</li>
+        </ul>
+        <p>The detail panel shows both numbers and which one is limiting the
+        rating: cell overlap, AIS coverage, or both.</p>
+        <p>In the current file, <strong>{n_high:,}</strong> assessed MPAs are
+        rated High, <strong>{n_medium:,}</strong> Medium and
+        <strong>{n_low:,}</strong> Low. <strong>{n_subcell:,}</strong> of the
+        {n_assessed:,} are smaller than one grid cell. They stay in the
+        ranking, flagged, and almost all are rated Low or Medium.</p>
+        """,
+    )
+
+    # ========================================================
+    # 07  NOT ASSESSED
+    # ========================================================
+
+    section(
+        "07",
+        "MPAs that are not assessed",
+        f"""
+        <p>An MPA is not assessed when AIS recorded a vessel in fewer than
+        10% of its cell-months. Estuaries, coastal lagoons and much of the
+        southern rim fall here. Their S comes out close to a perfect score,
+        which would mean only that no industrial vessel was ever tracked
+        there, not that protection works.</p>
+        <p>The <strong>{n_not:,}</strong> MPAs in this group are kept out of
+        the ranking and listed on their own page. Missing tracking data is
+        never read as absence of fishing.</p>
+        """,
+    )
+
+    # ========================================================
+    # 08  AIS LIMITATIONS AND THE COVERAGE RAMP
+    # ========================================================
+
+    section(
+        "08",
+        "AIS limitations and the coverage ramp",
+        f"""
+        <p>Fishing effort here is derived from the Automatic Identification
+        System (AIS), which tracks vessels. It covers industrial vessels
+        only, and it has limits:</p>
+        <ul class="meth-list">
+        <li>Vessels that do not carry AIS, or whose signal is not received,
+        are not observed.</li>
+        <li>Coverage is uneven across the basin. It is denser in the northern
+        Mediterranean, so estimates along the southern and eastern rim carry
+        more uncertainty.</li>
+        <li>The absence of AIS-recorded fishing is never proof that no fishing
+        took place.</li>
+        </ul>
+        <p><strong>Coverage grew over time.</strong> 2012 had very low
+        coverage, 2013 substantially more, and 2014 was much closer to later
+        levels. The main analysis therefore uses 2015 onward. Many MPAs were
+        designated between 2013 and 2016, while coverage was still rising, so
+        a simple before-and-after comparison can mislead: fishing can appear
+        to increase after designation only because tracking improved.</p>
+        <p>The project documents this ramp instead of treating the early years
+        as normal. Its separate before/after analysis uses a 2017 cutoff for
+        the relevant subset of areas, with the reasoning recorded in the
+        project decision log (entry D40). Before/after results are not shown
+        in this dashboard.</p>
+        """,
+    )
+
+    # ========================================================
+    # 09  WHAT THIS CANNOT TELL YOU
+    # ========================================================
+
+    section(
+        "09",
+        "What this cannot tell you",
+        """
+        <ul class="meth-list">
+        <li><strong>Designation is not regulation.</strong> The protected-area
+        register reports no-take status as “Not Reported” for 1,661 of the
+        1,663 Mediterranean sites, so it shows that an area is designated,
+        not whether fishing is allowed in it. For that reason this tool
+        shows no fishing rules for individual MPAs.</li>
+        <li><strong>A candidate gap has many possible explanations.</strong>
+        Fishing that the site's rules permit, activity at the edge of a site
+        or in a neighbouring cell, model error and enforcement gaps can all
+        produce it. The index does not tell them apart.</li>
+        <li><strong>A protection signal is not proof of protection.</strong>
+        Less fishing than expected is consistent with an effect of
+        protection but does not establish it.</li>
+        <li><strong>Only industrial fishing seen by AIS is measured.</strong>
+        It is not all fishing.</li>
+        <li><strong>Results depend on modelling choices.</strong> For example,
+        restricting the comparison water to conditions that protected areas
+        also experience substantially reduced an earlier estimate of the
+        effect.</li>
+        <li><strong>Some sites appear more than once.</strong> Overlapping
+        designations of one site can be separate records in the ranking
+        file.</li>
+        </ul>
+        """,
+    )
+
+    # ========================================================
+    # 10  DATA AND PROVENANCE
+    # ========================================================
+
+    section(
+        "10",
+        "Data and provenance",
+        f"""
+        <div class="meth-stats">
+        <div class="meth-stat"><div class="meth-stat-num">{n_total:,}</div>
+        <div class="meth-stat-label">MPAs in the ranking file</div></div>
+        <div class="meth-stat"><div class="meth-stat-num">{n_assessed:,}</div>
+        <div class="meth-stat-label">assessed</div></div>
+        <div class="meth-stat"><div class="meth-stat-num">{n_not:,}</div>
+        <div class="meth-stat-label">not assessed</div></div>
+        <div class="meth-stat"><div class="meth-stat-num">{n_countries_all}</div>
+        <div class="meth-stat-label">countries ({n_countries_assessed} with
+        assessed MPAs)</div></div>
+        </div>
+        <p>The dashboard reads a single MPA-level ranking file, one row per
+        MPA, covering the Mediterranean over {window}. The counts on this page
+        are computed from that file each time it loads.</p>
+        <p><strong>Prediction source:</strong>
+        <span class="meth-code">{source_label}</span></p>
+        <p>The source is read from inside the file, not inferred from its
+        name. If the bar at the top of any page turns red, the file that was
+        loaded is a placeholder build, and its numbers are not results.
+        Every column of the ranking is documented in the project data
+        dictionary.</p>
+        """,
+    )
