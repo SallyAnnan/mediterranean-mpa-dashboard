@@ -298,11 +298,20 @@ if st.session_state.page == "welcome":
 
 # ============================================================
 # CANDIDATE GAPS PAGE
+#
+# Needs: streamlit >= 1.39, plotly (in requirements.txt), and `df`
+# = the FULL ranking table (assessed and not assessed rows) loaded
+# above this block from the REAL file, mpa_ranking (1).parquet.
+#
+# Everything shown here comes from that file. Nothing is invented:
+# no fishing rules, no ecological context. Priority is DERIVED at
+# load time with Tiago's formula (it is not a stored column).
 # ============================================================
 
 elif st.session_state.page == "candidate_gaps":
 
     import html as html_lib
+    import numpy as np
     import plotly.graph_objects as go
 
     # --------------------------------------------------------
@@ -400,15 +409,57 @@ elif st.session_state.page == "candidate_gaps":
         "protection": {"bg": "#e9f3ec", "border": "#c9e0d1", "fg": "#377457"},
     }
 
-    # TODO: confirm wording with the modelling team
-    LIMIT_TEXT = {
-        "cell overlap": "Main limitation: the AIS grid cells used for this "
-                        "estimate only partly overlap the protected area.",
-        "AIS coverage": "Main limitation: AIS observability in this area. "
-                        "Some fishing may not appear in vessel-tracking data.",
-        "both": "Limited both by partial overlap between the AIS grid "
-                "cells and the protected area, and by AIS observability.",
-    }
+    def confidence_text(row):
+        """
+        Confidence (data dictionary): the WEAKER of two bands, one from
+        protected_fraction (how much of each grid cell the MPA fills)
+        and one from observed_share (share of cell-months where AIS saw
+        any vessel). We show the two real numbers instead of prose.
+        """
+        pf = row.get("protected_fraction")
+        obs = row.get("observed_share")
+        limited = str(row.get("confidence_limited_by", "") or "").strip()
+        limiting = {
+            "cell overlap": "cell overlap",
+            "AIS coverage": "AIS coverage",
+            "both": "both measures",
+        }.get(limited, limited)
+
+        parts = ["Confidence is the weaker of two measures."]
+        if pd.notna(pf):
+            parts.append(
+                f"On average the MPA fills {float(pf):.0%} of the grid "
+                "cells it touches."
+            )
+        if pd.notna(obs):
+            parts.append(
+                f"AIS recorded a vessel in {float(obs):.0%} of its "
+                "cell-months."
+            )
+        if limiting:
+            parts.append(f"Limiting factor: {html_lib.escape(limiting)}.")
+        return " ".join(parts)
+
+    def compute_priority(s_series, expected_series):
+        """
+        Tiago's formula, exactly as his dashboard uses it:
+
+            priority = S >= 0 ? 0
+                     : min(1, -S) * log10(1 + max(expected_hours_inside, 0))
+
+        Areas at or above zero show no shortfall, so they score 0. Below
+        zero it is the size of the shortfall (capped at 1) times the log
+        of the expected hours at stake, which stops a tiny area at -0.99
+        on a few hours from outranking a large one. Computed on assessed
+        rows only. NOT stored in the parquet, and the file's `rank`
+        column must NOT be used for ordering (it is ordered on S alone,
+        logged by Tiago as a defect).
+        """
+        s_num = pd.to_numeric(s_series, errors="coerce")
+        exp_num = pd.to_numeric(expected_series, errors="coerce").clip(lower=0)
+        shortfall = (-s_num).clip(upper=1)
+        priority = shortfall * np.log10(1 + exp_num)
+        return priority.where(s_num < 0, 0.0).fillna(0.0)
 
     def fmt_total(value) -> str:
         value = float(value)
@@ -786,7 +837,7 @@ elif st.session_state.page == "candidate_gaps":
     .ranking-header,
     .ranking-row {
         display: grid;
-        grid-template-columns: 2.3fr 0.9fr 1.5fr 1.3fr 1.2fr;
+        grid-template-columns: 2.1fr 0.85fr 0.8fr 1.45fr 1.2fr 1fr;
         align-items: center;
         padding: 0 14px;
         box-sizing: border-box;
@@ -885,7 +936,7 @@ elif st.session_state.page == "candidate_gaps":
     .ranking-scroll { overflow-x: auto; }
 
     .ranking-scroll .ranking-header,
-    .ranking-scroll .ranking-row { min-width: 640px; }
+    .ranking-scroll .ranking-row { min-width: 720px; }
 
     .ranking-row.selected { background: #e4edf5 !important; }
     .ranking-row.selected .ranking-name { color: #1f5f8b; }
@@ -1031,7 +1082,7 @@ elif st.session_state.page == "candidate_gaps":
         gap: 0 !important;
     }
 
-    .st-key-table_wrap > * { min-width: 640px; }
+    .st-key-table_wrap > * { min-width: 720px; }
 
     div[class*="st-key-tablerow_"] {
         position: relative;
@@ -1084,6 +1135,60 @@ elif st.session_state.page == "candidate_gaps":
         border: 1px solid #e8b4ac;
         color: #a63d2d;
         font-weight: 600;
+    }
+
+    /* ---------- priority column, notes, show-more ---------- */
+
+    .ranking-header .active-sort { color: #1f5f8b; }
+
+    .ranking-priority {
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: #262522;
+    }
+
+    .ranking-priority.zero {
+        color: #aaa79d;
+        font-weight: 400;
+    }
+
+    .table-note {
+        color: #77756e;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        line-height: 1.55;
+        max-width: 720px;
+        margin: -2px 0 16px 0;
+    }
+
+    .table-count {
+        color: #aaa79d;
+        font-family: Arial, sans-serif;
+        font-size: 10px;
+        padding-top: 14px;
+    }
+
+    .st-key-show_more button {
+        width: 100%;
+        margin-top: 8px;
+        background: #e8f0f5 !important;
+        border: 1px solid #d3e1ea !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        min-height: 34px !important;
+    }
+
+    .st-key-show_more button p {
+        color: #35617e !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 11px !important;
+        font-weight: 400 !important;
+    }
+
+    .st-key-show_more button:hover {
+        background: #e1ebf1 !important;
+        border-color: #c6d9e5 !important;
     }
 
     </style>
@@ -1236,6 +1341,23 @@ elif st.session_state.page == "candidate_gaps":
     assessed_df["country"] = (
         assessed_df["iso3"].map(COUNTRY_NAMES).fillna(assessed_df["iso3"])
     )
+
+    # Normalise on read (Manuel): the file uses High / Medium / Low, but
+    # never trust the casing.
+    assessed_df["confidence"] = (
+        assessed_df["confidence"].astype(str).str.strip().str.lower()
+    )
+
+    assessed_df["priority"] = compute_priority(
+        assessed_df["S"], assessed_df["expected_hours_inside"]
+    )
+
+    # TODO(duplicates): overlapping designations of one site appear as
+    # several rows here (e.g. Delta de l'Ebre and Cap de Creus x3, with
+    # identical numbers). Tiago's dashboard folds them into one row
+    # (1,129 rows vs 1,288 assessed). The parquet is NOT folded and we
+    # do not have his grouping rule yet. Apply it right here, before
+    # anything below, once he confirms it.
 
     # ========================================================
     # DISTRIBUTION (Plotly, so dots can be clicked)
@@ -1513,13 +1635,8 @@ elif st.session_state.page == "candidate_gaps":
             "low": "confidence-low",
         }.get(confidence.lower(), "confidence-medium")
 
-        limited_by = str(row.get("confidence_limited_by", "") or "").strip()
-        conf_text = LIMIT_TEXT.get(
-            limited_by,
-            f"Main limitation: {html_lib.escape(limited_by)}."
-            if limited_by
-            else "No specific limitation recorded.",
-        )
+        conf_text = confidence_text(row)
+        priority_value = float(row.get("priority", 0))
 
         if s_value < 0:
             s_desc = (
@@ -1533,7 +1650,16 @@ elif st.session_state.page == "candidate_gaps":
                 "enforcement challenge."
             )
             gap_color = "#a63d2d"
+            priority_desc = (
+                "Shortfall × log10(1 + expected hours). This is what ranks "
+                "the table: it favours areas where a lot of fishing was "
+                "expected, so a small area cannot top the list on a few "
+                "hours alone."
+            )
         else:
+            priority_desc = (
+                "No shortfall (S of 0 or above), so priority is 0."
+            )
             s_desc = (
                 "Observed fishing effort is below the modelled counterfactual. "
                 "This is consistent with a protection effect but does not "
@@ -1546,8 +1672,12 @@ elif st.session_state.page == "candidate_gaps":
             gap_color = "#377457"
 
         iucn = html_lib.escape(str(row.get("iucn_cat", "—")))
-        site_type = html_lib.escape(str(row.get("site_type", "—")))
+        site_raw = str(row.get("site_type", "—"))
+        site_type = html_lib.escape(
+            {"PA": "Protected area"}.get(site_raw, site_raw)
+        )
         status_year = row.get("status_year", None)
+        year_known = bool(row.get("designation_year_known", True))
         area = row.get("area_km2", None)
         n_cells = row.get("n_cells", None)
 
@@ -1555,12 +1685,20 @@ elif st.session_state.page == "candidate_gaps":
             f"IUCN category: {iucn}",
             f"Site type: {site_type}",
         ]
-        if pd.notna(status_year):
-            context_bits.append(f"Status year: {int(status_year)}")
+        # status_year is 0 exactly where the designation year is unknown
+        # (88 sites), so never print the raw 0.
+        if year_known and pd.notna(status_year) and int(status_year) > 0:
+            context_bits.append(f"Designated: {int(status_year)}")
+        else:
+            context_bits.append("Designation year: unknown")
         if pd.notna(area):
             context_bits.append(f"Area: {float(area):,.1f} km²")
         if pd.notna(n_cells):
             context_bits.append(f"AIS grid cells used: {int(n_cells):,}")
+        if row.get("resolvable", True) is False or row.get("resolvable") == False:
+            context_bits.append(
+                "Smaller than one 0.1° grid cell, so the estimate is coarse."
+            )
         context_html = "<br>".join(context_bits)
 
         head_l, head_r = st.columns([6, 1], gap="small")
@@ -1633,6 +1771,12 @@ elif st.session_state.page == "candidate_gaps":
                 </div>
                 <div class="detail-note">{gap_desc}</div>
 
+                <div class="detail-row" style="margin-top:18px;">
+                    <span class="detail-text">Priority score</span>
+                    <span class="detail-gap">{priority_value:.2f}</span>
+                </div>
+                <div class="detail-note">{priority_desc}</div>
+
                 <div class="detail-hr"></div>
 
                 <div class="detail-row">
@@ -1677,23 +1821,36 @@ elif st.session_state.page == "candidate_gaps":
     else:
         table_col, panel_col = st.container(), None
 
-    # TODO(priority-column): Tiago's 5-day-old message said sorting on S
-    # alone puts tiny, barely-fished areas at the top (confirmed: still
-    # true on the current file — sub-4-km² sites dominate the top of S).
-    # He mentioned a Priority column, weighted by effort at stake, meant
-    # to replace this sort. It is not in the current mpa_ranking.parquet
-    # (checked: only `rank` and `S` exist). Once Tiago confirms which
-    # file has it, swap the line below for:
-    #   table_df = filtered_df.sort_values("Priority", ascending=True)
-    table_df = filtered_df.sort_values("S", ascending=True).copy()
+    # Default order: priority DESCENDING (Tiago). Ties (every S >= 0 area
+    # scores 0) are broken by S ascending, so the most negative comes first.
+    table_df = filtered_df.sort_values(
+        ["priority", "S"], ascending=[False, True]
+    ).copy()
+
+    # "Show more" pagination. Reset to 10 whenever a filter changes so
+    # the person is never left looking at row 40 of a different list.
+    filter_signature = (
+        search_value, selected_country, selected_confidence, selected_s,
+    )
+    if st.session_state.get("table_sig") != filter_signature:
+        st.session_state.table_sig = filter_signature
+        st.session_state.table_limit = 10
+    st.session_state.setdefault("table_limit", 10)
+
+    def show_more_rows():
+        st.session_state.table_limit += 10
+
+    n_matching = len(table_df)
+    n_shown = min(st.session_state.table_limit, n_matching)
 
     row_items = []   # (wdpa_id, html)
 
-    for idx, (_, row) in enumerate(table_df.head(10).iterrows()):
+    for idx, (_, row) in enumerate(table_df.head(n_shown).iterrows()):
 
         name = html_lib.escape(str(row.get("mpa_name", "Unnamed MPA")))
         country = html_lib.escape(str(row.get("country", "—")))
         s_value = float(row.get("S", 0))
+        priority_value = float(row.get("priority", 0))
         gap_text = fmt_hours(row.get("abs_gap_hours", None))
 
         confidence = str(row.get("confidence", "not assessed")).strip()
@@ -1726,7 +1883,12 @@ elif st.session_state.page == "candidate_gaps":
             f'<div class="{row_class}">'
             f'<div class="ranking-name">{name}</div>'
             f'<div class="ranking-country">{country}</div>'
-            '<div class="ranking-s">'
+            + (
+                f'<div class="ranking-priority">{priority_value:.2f}</div>'
+                if priority_value > 0
+                else '<div class="ranking-priority zero">0</div>'
+            )
+            + '<div class="ranking-s">'
             f'<span class="ranking-s-value" style="color:{color};">'
             f'{s_value:+.2f}</span>'
             '<span class="ranking-s-bar">'
@@ -1746,7 +1908,8 @@ elif st.session_state.page == "candidate_gaps":
         '<div class="ranking-header">'
         '<div>Protected area ↕</div>'
         '<div>Country ↕</div>'
-        '<div>S / candidate gap ↑</div>'
+        '<div class="active-sort">Priority ↓</div>'
+        '<div>S / candidate gap ↕</div>'
         '<div>Abs. gap (hrs) ↕</div>'
         '<div>Confidence ↕</div>'
         '</div>'
@@ -1757,7 +1920,14 @@ elif st.session_state.page == "candidate_gaps":
             clean_html(
                 """
                 <div class="table-caption">
-                    Protected areas · sorted by candidate gap
+                    Protected areas · ranked by priority
+                </div>
+                <div class="table-note">
+                    Priority weights the size of the shortfall (S below 0)
+                    by the fishing hours expected there, so small areas
+                    with little at stake do not outrank large ones. Areas
+                    with S of 0 or above score 0. S and the absolute gap
+                    stay alongside it.
                 </div>
                 """
             ),
@@ -1785,6 +1955,29 @@ elif st.session_state.page == "candidate_gaps":
                     'No assessed protected areas match these filters.</div>',
                     unsafe_allow_html=True,
                 )
+
+        if n_matching > 0:
+            foot_l, foot_r = st.columns([3, 1], gap="small")
+            with foot_l:
+                st.markdown(
+                    clean_html(
+                        f"""
+                        <div class="table-count">
+                            Showing {n_shown:,} of {n_matching:,} assessed
+                            protected areas
+                        </div>
+                        """
+                    ),
+                    unsafe_allow_html=True,
+                )
+            with foot_r:
+                if n_shown < n_matching:
+                    st.button(
+                        "Show 10 more",
+                        key="show_more",
+                        type="secondary",
+                        on_click=show_more_rows,
+                    )
 
     if panel_col is not None:
         with panel_col:
