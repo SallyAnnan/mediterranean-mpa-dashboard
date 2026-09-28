@@ -2553,7 +2553,7 @@ elif st.session_state.page == "not_assessed":
 # out of sync with the file that is loaded.
 # ============================================================
 
-elif st.session_state.page == "methodology":
+ elif st.session_state.page == "methodology":
 
     import html as html_lib
 
