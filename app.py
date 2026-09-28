@@ -7,7 +7,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-# Load dashboard data
+
+# Load dashboard data (the REAL model output, not the placeholder)
 DATA_PATH = "data/mpa_ranking (1).parquet"
 df = pd.read_parquet(DATA_PATH)
 
@@ -31,8 +32,13 @@ footer {
     visibility: hidden;
 }
 
-header {
-    background: transparent;
+/* Remove Streamlit's top bar entirely. It was covering the top of the
+   page because .block-container padding is smaller than the bar. */
+header[data-testid="stHeader"],
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] {
+    display: none !important;
 }
 
 .block-container {
@@ -163,12 +169,47 @@ h2 {
     font-size: 0.75rem;
     text-align: center;
 }
+
+/* Logo, identical to the one on the Candidate gaps page */
+.brand-static {
+    position: relative;
+    padding-left: 36px;
+    font-family: Georgia, serif;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 24px;
+    color: #262522;
+}
+
+.brand-static::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26' fill='none' stroke='%231f5f8b' stroke-width='1.4'%3E%3Ccircle cx='13' cy='13' r='11'/%3E%3Cpath d='M5 12c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3Cpath d='M5 16c2-2 4-2 6 0s4 2 6 0 3-1 4 0'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.brand-subtitle {
+    color: #aaa79d;
+    font-family: Arial, sans-serif;
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    margin-top: 8px;
+    margin-left: 34px;
+    white-space: nowrap;
+}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Header and pages
+# ============================================================
+# WELCOME PAGE
 # ============================================================
 
 if st.session_state.page == "welcome":
@@ -177,12 +218,8 @@ if st.session_state.page == "welcome":
     st.markdown(
         """
     <div style="border-bottom:1px solid #deddd7;padding:0.5rem 0 1rem 0;margin-bottom:3rem;">
-    <div style="color:#1f5f8b;font-size:0.85rem;font-weight:600;letter-spacing:0.04em;">
-    ◯ &nbsp; MPA Enforcement Intelligence
-    </div>
-    <div style="color:#9a9992;font-size:0.65rem;letter-spacing:0.12em;margin-top:0.2rem;margin-left:1.8rem;">
-    MEDITERRANEAN · DECISION SUPPORT
-    </div>
+    <div class="brand-static">MPA Enforcement Intelligence</div>
+    <div class="brand-subtitle">MEDITERRANEAN · DECISION SUPPORT</div>
     </div>
     """,
         unsafe_allow_html=True,
@@ -294,7 +331,6 @@ if st.session_state.page == "welcome":
     """,
         unsafe_allow_html=True,
     )
-
 
 # ============================================================
 # CANDIDATE GAPS PAGE
