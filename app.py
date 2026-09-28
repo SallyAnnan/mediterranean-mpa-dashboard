@@ -1285,7 +1285,7 @@ elif st.session_state.page == "candidate_gaps":
             st.rerun()
 
     with nav_method:
-    st.button(
+       st.button(
         "Methodology",
         key="candidate_methodology_nav",
         type="tertiary",
