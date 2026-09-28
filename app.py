@@ -2384,7 +2384,7 @@ elif st.session_state.page == "not_assessed":
         )
 
     with nav_method:
-    st.button(
+       st.button(
         "Methodology",
         key="na_methodology_nav",
         type="tertiary",
