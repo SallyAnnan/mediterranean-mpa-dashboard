@@ -12,6 +12,16 @@ st.set_page_config(
 DATA_PATH = "data/mpa_ranking (1).parquet"
 df = pd.read_parquet(DATA_PATH)
 
+# Real lat/lon per MPA, built from cells_monthly_features.parquet
+# (cell_id -> lat_center, lon_center, wdpa_id_primary), averaged per MPA.
+# Coverage is NOT complete: only 627 of 1,288 assessed MPAs get a cell
+# marked "primary" for them (most MPAs share a grid cell with at least
+# one other, and only one MPA per cell can be primary). The map shows
+# exactly these, with a visible count, rather than inventing the rest.
+CENTROIDS_PATH = "data/mpa_centroids.parquet"
+_centroids = pd.read_parquet(CENTROIDS_PATH)
+df = df.merge(_centroids, on="wdpa_id", how="left")
+
 # Page state
 if "page" not in st.session_state:
     st.session_state.page = "welcome"
@@ -331,6 +341,7 @@ if st.session_state.page == "welcome":
     """,
         unsafe_allow_html=True,
     )
+
 
 # ============================================================
 # CANDIDATE GAPS PAGE
@@ -761,6 +772,32 @@ elif st.session_state.page == "candidate_gaps":
         position: absolute; right: 14%; bottom: 6px;
         color: #377457; font-family: Arial, sans-serif;
         font-size: 9px; font-style: italic;
+    }
+
+    .map-legend {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 10px;
+        font-family: Arial, sans-serif;
+        font-size: 10.5px;
+        color: #4f4d47;
+    }
+
+    .legend-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .map-legend-note {
+        color: #aaa79d;
+        font-style: italic;
+        margin-left: auto;
     }
 
     /* ---------- filter bar ----------
@@ -1285,12 +1322,13 @@ elif st.session_state.page == "candidate_gaps":
             st.rerun()
 
     with nav_method:
-       st.button(
-        "Methodology",
-        key="candidate_methodology_nav",
-        type="tertiary",
-        on_click=lambda: st.session_state.update(page="methodology"),
-    )
+        if st.button(
+            "Methodology",
+            key="candidate_methodology_nav",
+            type="tertiary",
+        ):
+            st.session_state.page = "methodology"
+            st.rerun()
 
     render_provenance_bar(df)
 
@@ -1397,37 +1435,30 @@ elif st.session_state.page == "candidate_gaps":
     # anything below, once he confirms it.
 
     # ========================================================
-    # DISTRIBUTION (Plotly, so dots can be clicked)
+    # MAP (Plotly Scattergeo, so dots can be clicked)
+    #
+    # Shows real MPA locations (not an abstract -1..+1 strip). Coverage
+    # is honest, not complete: only MPAs with a cell marked "primary"
+    # for them have a known coordinate (see the merge note in app.py).
     # ========================================================
+
+    map_df = assessed_df.dropna(subset=["lat", "lon"]).copy()
+    n_mapped = len(map_df)
+    n_total_assessed = len(assessed_df)
+
+    na_map_df = df[(df["assessed"] == False)].dropna(subset=["lat", "lon"])
 
     st.markdown(
         clean_html(
-            """
+            f"""
             <div class="distribution-label">
-                S distribution · sample of 20 assessed MPAs · click to select
+                Where they are · {n_mapped:,} of {n_total_assessed:,}
+                assessed MPAs with a known location · click to select
             </div>
             """
         ),
         unsafe_allow_html=True,
     )
-
-    sorted_sample = assessed_df.sort_values("S").reset_index(drop=True)
-
-    if len(sorted_sample) > 20:
-        positions = [
-            round(i * (len(sorted_sample) - 1) / 19)
-            for i in range(20)
-        ]
-        distribution_df = sorted_sample.iloc[positions].reset_index(drop=True)
-    else:
-        distribution_df = sorted_sample.copy()
-
-    dot_heights = [
-        69, 48, 34, 57, 43,
-        62, 45, 57, 37, 51,
-        40, 60, 47, 31, 56,
-        43, 61, 38, 55, 45,
-    ]
 
     def dot_color_for(s):
         if s < -0.65:
@@ -1442,77 +1473,94 @@ elif st.session_state.page == "candidate_gaps":
             return "#4f8568"
         return "#28664b"
 
-    xs, ys, hover, colors = [], [], [], []
+    def marker_size(hours_series, lo=5, hi=26):
+        # sqrt scaling: a 100x bigger gap should not be a 100x bigger dot
+        h = pd.to_numeric(hours_series, errors="coerce").clip(lower=0).fillna(0)
+        root = h.pow(0.5)
+        rmax = root.max()
+        if not rmax or pd.isna(rmax) or rmax == 0:
+            return pd.Series(lo, index=h.index)
+        return lo + (root / rmax) * (hi - lo)
 
-    for i, (_, r) in enumerate(distribution_df.iterrows()):
-        s_val = float(r["S"])
+    conf_opacity = {"high": 0.95, "medium": 0.7, "low": 0.45}
 
-        xs.append(s_val)
-        ys.append(100 - dot_heights[i % len(dot_heights)])
-        hover.append(f'{r["mpa_name"]} · S {s_val:+.2f}')
-        colors.append(dot_color_for(s_val))
+    map_df["marker_size"] = marker_size(map_df["abs_gap_hours"].abs())
+    map_df["marker_color"] = map_df["S"].astype(float).apply(dot_color_for)
+    map_df["marker_opacity"] = (
+        map_df["confidence"].map(conf_opacity).fillna(0.6)
+    )
+    map_df["hover_text"] = (
+        map_df["mpa_name"] + " · S "
+        + map_df["S"].map(lambda v: f"{float(v):+.2f}")
+        + " · " + map_df["confidence"].str.capitalize()
+    )
 
     fig = go.Figure()
 
-    Y_BOTTOM, Y_TOP = 28.4, 81.8
-
-    fig.add_shape(type="rect", x0=-1, x1=0, y0=Y_BOTTOM, y1=Y_TOP,
-                  fillcolor="#fbf4f1", line_width=0, layer="below")
-    fig.add_shape(type="rect", x0=0, x1=1, y0=Y_BOTTOM, y1=Y_TOP,
-                  fillcolor="#f1f6f2", line_width=0, layer="below")
-    fig.add_shape(type="line", x0=-1, x1=1, y0=Y_BOTTOM, y1=Y_BOTTOM,
-                  line=dict(color="#d5d2ca", width=1), layer="below")
-    fig.add_shape(type="line", x0=0, x1=0, y0=Y_BOTTOM, y1=Y_TOP,
-                  line=dict(color="#d5d2ca", width=1), layer="below")
-
-    for tick, label in [(-1, "−1"), (-0.5, "−0.5"), (0, "0"),
-                        (0.5, "+0.5"), (1, "+1")]:
-        fig.add_shape(type="line", x0=tick, x1=tick,
-                      y0=Y_BOTTOM, y1=Y_BOTTOM - 4,
-                      line=dict(color="#d5d2ca", width=1), layer="below")
-        fig.add_annotation(x=tick, y=17, text=label, showarrow=False,
-                           font=dict(family="monospace", size=10,
-                                     color="#aaa79d"))
-
-    fig.add_annotation(x=-1, y=4, xanchor="left", showarrow=False,
-                       text="<i>← candidate gap</i>",
-                       font=dict(family="Arial", size=10, color="#b25b49"))
-    fig.add_annotation(x=0, y=4, showarrow=False, text="baseline",
-                       font=dict(family="Arial", size=10, color="#aaa79d"))
-    fig.add_annotation(x=1, y=4, xanchor="right", showarrow=False,
-                       text="<i>protection signal →</i>",
-                       font=dict(family="Arial", size=10, color="#377457"))
+    # Context only: not-assessed MPAs, grey, not clickable. Added first
+    # so assessed dots draw on top of them.
+    if len(na_map_df):
+        fig.add_trace(
+            go.Scattergeo(
+                lon=na_map_df["lon"],
+                lat=na_map_df["lat"],
+                mode="markers",
+                text=na_map_df["mpa_name"] + " · not assessed",
+                hovertemplate="%{text}<extra></extra>",
+                marker=dict(size=6, color="#c9c6bc", opacity=0.6,
+                            line=dict(width=0)),
+                hoverlabel=dict(bgcolor="#262522", bordercolor="#262522",
+                                 font=dict(family="Arial", size=11,
+                                           color="#ffffff")),
+                showlegend=False,
+            )
+        )
 
     fig.add_trace(
-        go.Scatter(
-            x=xs,
-            y=ys,
+        go.Scattergeo(
+            lon=map_df["lon"],
+            lat=map_df["lat"],
             mode="markers",
-            text=hover,
+            text=map_df["hover_text"],
             hovertemplate="%{text}<extra></extra>",
-            marker=dict(size=10, color=colors),
-            # Highlighting is done by Plotly itself (NOT by rebuilding the
-            # figure): if the figure changes on every click, Streamlit
-            # treats it as a new widget, drops the selection and loops.
-            selected=dict(marker=dict(opacity=1, size=15)),
-            unselected=dict(marker=dict(opacity=0.4)),
+            marker=dict(
+                size=map_df["marker_size"],
+                color=map_df["marker_color"],
+                opacity=map_df["marker_opacity"],
+                line=dict(width=0),
+            ),
+            selected=dict(marker=dict(opacity=1)),
+            unselected=dict(marker=dict(opacity=0.55)),
             hoverlabel=dict(
                 bgcolor="#262522",
                 bordercolor="#262522",
                 font=dict(family="Arial", size=11, color="#ffffff"),
             ),
+            showlegend=False,
         )
     )
 
-    # x range chosen so -1 and +1 sit at 14% and 86% of the width
+    fig.update_geos(
+        lonaxis_range=[-7, 37],
+        lataxis_range=[29, 47],
+        projection_type="mercator",
+        showland=True,
+        landcolor="#eeece6",
+        showocean=True,
+        oceancolor="#f7f6f2",
+        showcountries=False,
+        showcoastlines=True,
+        coastlinecolor="#d5d2ca",
+        coastlinewidth=1,
+        showframe=False,
+        bgcolor="#f7f6f2",
+    )
+
     fig.update_layout(
-        height=148,
+        height=320,
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="#f7f6f2",
         plot_bgcolor="#f7f6f2",
-        showlegend=False,
-        xaxis=dict(range=[-1.389, 1.389], visible=False, fixedrange=True),
-        yaxis=dict(range=[0, 100], visible=False, fixedrange=True),
     )
 
     event = st.plotly_chart(
@@ -1524,18 +1572,41 @@ elif st.session_state.page == "candidate_gaps":
         config={"displayModeBar": False},
     )
 
+    st.markdown(
+        clean_html(
+            """
+            <div class="map-legend">
+                <span><i class="legend-dot" style="background:#a63d32;">
+                </i>more fishing than expected</span>
+                <span><i class="legend-dot" style="background:#4f8568;">
+                </i>less fishing than expected</span>
+                <span><i class="legend-dot" style="background:#c9c6bc;">
+                </i>not assessed</span>
+                <span class="map-legend-note">
+                    Dot size: hours at stake · opacity: confidence
+                </span>
+            </div>
+            """
+        ),
+        unsafe_allow_html=True,
+    )
+
     picked = None
     try:
         pts = event.selection.points
-        if pts:
-            picked = int(
-                distribution_df.iloc[pts[0]["point_index"]]["wdpa_id"]
-            )
+        # Only the assessed trace (curve 1, or curve 0 if the not-assessed
+        # trace was never added) is clickable/selectable into a detail
+        # view; the not-assessed trace is context only.
+        assessed_curve = 1 if len(na_map_df) else 0
+        for pt in pts:
+            if pt.get("curve_number") == assessed_curve:
+                picked = int(map_df.iloc[pt["point_index"]]["wdpa_id"])
+                break
     except Exception:
         picked = None
 
     # Only react when the chart selection actually CHANGES, so that
-    # closing the panel / (later) selecting a table row isn't undone.
+    # closing the panel / selecting a table row isn't undone.
     if picked != st.session_state.last_chart_pick:
         st.session_state.last_chart_pick = picked
         st.session_state.selected_wdpa = picked
@@ -2020,6 +2091,8 @@ elif st.session_state.page == "candidate_gaps":
         with panel_col:
             with st.container(key="detail_panel"):
                 render_detail(selected_row)
+
+
 # ============================================================
 # NOT ASSESSED PAGE
 # Paste this block directly AFTER the candidate_gaps block
@@ -2384,13 +2457,13 @@ elif st.session_state.page == "not_assessed":
         )
 
     with nav_method:
-       st.button(
-        "Methodology",
-        key="na_methodology_nav",
-        type="tertiary",
-        on_click=go_to,
-        args=("methodology",),
-    )
+        st.button(
+            "Methodology",
+            key="na_methodology_nav",
+            type="tertiary",
+            on_click=go_to,
+            args=("methodology",),
+        )
 
     render_provenance_bar(df)
 
@@ -2428,7 +2501,9 @@ elif st.session_state.page == "not_assessed":
             <div class="na-description">
                 Insufficient Automatic Identification System (AIS) coverage
                 means the available vessel tracking data cannot support a
-                reliable assessment for these protected areas.
+                reliable assessment for these protected areas. Some of these
+                are estuaries, lagoons and inland waters where industrial
+                vessels do not operate at all.
             </div>
             <div style="border-bottom:1px solid #deddd7;
                         margin-top:26px;"></div>
@@ -2546,6 +2621,8 @@ elif st.session_state.page == "not_assessed":
         + '</div>',
         unsafe_allow_html=True,
     )
+
+
 # ============================================================
 # METHODOLOGY PAGE
 # Paste this block directly AFTER the not_assessed block
