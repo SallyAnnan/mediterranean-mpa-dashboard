@@ -1461,17 +1461,12 @@ elif st.session_state.page == "candidate_gaps":
     )
 
     def dot_color_for(s):
-        if s < -0.65:
-            return "#a63d32"
-        if s < -0.30:
-            return "#c2674e"
-        if s < 0:
-            return "#c88c51"
-        if s < 0.35:
-            return "#8b8b78"
-        if s < 0.70:
-            return "#4f8568"
-        return "#28664b"
+        # Map-only palette (per the reference photo): a single pink for
+        # any candidate gap, a single teal for any protection signal.
+        # This does NOT affect the S colors used anywhere else on the
+        # page (dots in the table, the detail panel, etc. keep the
+        # red/green scale they already use).
+        return "#ec4899" if s < 0 else "#2dd4bf"
 
     def marker_size(hours_series, lo=5, hi=26):
         # sqrt scaling: a 100x bigger gap should not be a 100x bigger dot
@@ -1507,7 +1502,7 @@ elif st.session_state.page == "candidate_gaps":
                 mode="markers",
                 text=na_map_df["mpa_name"] + " · not assessed",
                 hovertemplate="%{text}<extra></extra>",
-                marker=dict(size=6, color="#c9c6bc", opacity=0.6,
+                marker=dict(size=6, color="#8b95a8", opacity=0.75,
                             line=dict(width=0)),
                 hoverlabel=dict(bgcolor="#262522", bordercolor="#262522",
                                  font=dict(family="Arial", size=11,
@@ -1540,27 +1535,29 @@ elif st.session_state.page == "candidate_gaps":
         )
     )
 
+    # Dark theme for the map graphic ONLY (per request): the page
+    # around it, the label above and the legend below stay cream.
     fig.update_geos(
         lonaxis_range=[-7, 37],
         lataxis_range=[29, 47],
         projection_type="mercator",
         showland=True,
-        landcolor="#eeece6",
+        landcolor="#16233a",
         showocean=True,
-        oceancolor="#f7f6f2",
+        oceancolor="#0d1824",
         showcountries=False,
         showcoastlines=True,
-        coastlinecolor="#d5d2ca",
+        coastlinecolor="#2c3e56",
         coastlinewidth=1,
         showframe=False,
-        bgcolor="#f7f6f2",
+        bgcolor="#0d1824",
     )
 
     fig.update_layout(
         height=320,
         margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="#f7f6f2",
-        plot_bgcolor="#f7f6f2",
+        paper_bgcolor="#0d1824",
+        plot_bgcolor="#0d1824",
     )
 
     event = st.plotly_chart(
@@ -1576,11 +1573,11 @@ elif st.session_state.page == "candidate_gaps":
         clean_html(
             """
             <div class="map-legend">
-                <span><i class="legend-dot" style="background:#a63d32;">
+                <span><i class="legend-dot" style="background:#ec4899;">
                 </i>more fishing than expected</span>
-                <span><i class="legend-dot" style="background:#4f8568;">
+                <span><i class="legend-dot" style="background:#2dd4bf;">
                 </i>less fishing than expected</span>
-                <span><i class="legend-dot" style="background:#c9c6bc;">
+                <span><i class="legend-dot" style="background:#8b95a8;">
                 </i>not assessed</span>
                 <span class="map-legend-note">
                     Dot size: hours at stake · opacity: confidence
